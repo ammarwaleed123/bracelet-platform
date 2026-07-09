@@ -55,18 +55,23 @@ function CaptureRegistrar() {
     registerCapture(() => {
       gl.render(scene, camera); // ensure a fresh frame is in the buffer
       const src = gl.domElement;
-      const size = 512;
+      const size = 640;
       const off = document.createElement("canvas");
       off.width = size;
       off.height = size;
       const ctx = off.getContext("2d");
       if (!ctx) return null;
-      // Center-crop the (usually wide) canvas to a square, scaled to 512px.
-      const s = Math.min(src.width, src.height);
-      const sx = (src.width - s) / 2;
-      const sy = (src.height - s) / 2;
-      ctx.drawImage(src, sx, sy, s, s, 0, 0, size, size);
-      return off.toDataURL("image/jpeg", 0.82);
+      // Premium framing: the whole bracelet contained and centered on a cream
+      // square with a generous margin (never touching the edges).
+      ctx.fillStyle = "#f7f4ef";
+      ctx.fillRect(0, 0, size, size);
+      const margin = 0.15;
+      const box = size * (1 - margin * 2);
+      const scale = Math.min(box / src.width, box / src.height);
+      const dw = src.width * scale;
+      const dh = src.height * scale;
+      ctx.drawImage(src, (size - dw) / 2, (size - dh) / 2, dw, dh);
+      return off.toDataURL("image/jpeg", 0.85);
     });
     return () => registerCapture(null);
   }, [gl, scene, camera]);

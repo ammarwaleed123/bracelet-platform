@@ -47,6 +47,12 @@ export default async function DesignPage({
 
   return (
     <Container className="py-12">
+      <Link
+        href="/gallery"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-ink-soft transition-colors hover:text-ink"
+      >
+        ← Back to gallery
+      </Link>
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Visual */}
         <div className="relative aspect-square overflow-hidden rounded-3xl border border-border bg-linen">

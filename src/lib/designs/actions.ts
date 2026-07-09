@@ -5,7 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { requireUser } from "@/lib/auth/guards";
+import { ensureProfile, requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { designLikes, designs, profiles } from "@/lib/db/schema";
 import { computeDesignPriceInPiastres } from "@/lib/designs/pricing";
@@ -35,6 +35,7 @@ export async function saveDesign(
   input: SaveDesignInput
 ): Promise<SaveDesignResult> {
   const user = await requireUser();
+  await ensureProfile(user); // guarantees the owner_id FK target exists
   const parsed = saveSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid design." };
@@ -49,16 +50,19 @@ export async function saveDesign(
     refId: c.refId,
   }));
 
-  let designId = d.designId;
+  let designId: string;
+  let publicId: string;
 
-  if (designId) {
+  if (d.designId) {
     // Update only if it belongs to the user.
     const [owned] = await db
-      .select({ id: designs.id })
+      .select({ id: designs.id, publicId: designs.publicId })
       .from(designs)
-      .where(and(eq(designs.id, designId), eq(designs.ownerId, user.id)))
+      .where(and(eq(designs.id, d.designId), eq(designs.ownerId, user.id)))
       .limit(1);
     if (!owned) return { ok: false, error: "Design not found." };
+    designId = owned.id;
+    publicId = owned.publicId;
 
     await db
       .update(designs)
@@ -72,10 +76,11 @@ export async function saveDesign(
       })
       .where(eq(designs.id, designId));
   } else {
+    publicId = nanoid(10);
     const [row] = await db
       .insert(designs)
       .values({
-        publicId: nanoid(10),
+        publicId,
         ownerId: user.id,
         name: d.name,
         status: "saved",
@@ -103,14 +108,8 @@ export async function saveDesign(
     }
   }
 
-  const [saved] = await db
-    .select({ publicId: designs.publicId })
-    .from(designs)
-    .where(eq(designs.id, designId))
-    .limit(1);
-
   revalidatePath("/account");
-  return { ok: true, id: designId, publicId: saved!.publicId };
+  return { ok: true, id: designId, publicId };
 }
 
 async function assertOwner(designId: string, userId: string) {
@@ -138,15 +137,26 @@ export async function deleteDesign(designId: string) {
 }
 
 /**
- * Submit a design to the public gallery. Goes to moderation (pending) before
- * it appears publicly. Optional opt-in creator display name.
+ * Submit a design to the public gallery.
  *
- * NOTE: the purchase-gate ("must have bought it to publish") is wired in after
- * milestone 1.5, when orders exist. For now, publishing goes to moderation.
+ * Admins publish directly (auto-approved). Customers go to moderation (pending)
+ * and an admin approves them. Optional opt-in creator display name.
+ *
+ * NOTE: the purchase-gate ("a customer must have BOUGHT the design to publish")
+ * is wired in after milestone 1.5, when orders exist. For now, a customer's
+ * submission goes straight to the moderation queue.
  */
 export async function publishDesign(designId: string, displayName?: string) {
   const user = await requireUser();
+  await ensureProfile(user);
   if (!(await assertOwner(designId, user.id))) return;
+
+  const [profile] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, user.id))
+    .limit(1);
+  const isAdmin = profile?.role === "admin";
 
   const name = displayName?.trim();
   if (name) {
@@ -158,9 +168,13 @@ export async function publishDesign(designId: string, displayName?: string) {
 
   await db
     .update(designs)
-    .set({ status: "published_public", moderationStatus: "pending" })
+    .set({
+      status: "published_public",
+      moderationStatus: isAdmin ? "approved" : "pending",
+    })
     .where(eq(designs.id, designId));
   revalidatePath("/account");
+  revalidatePath("/gallery");
 }
 
 export async function unpublishDesign(designId: string) {
@@ -176,6 +190,7 @@ export async function unpublishDesign(designId: string) {
 
 export async function likeDesign(designId: string) {
   const user = await requireUser();
+  await ensureProfile(user); // guarantees the user_id FK target exists
   const inserted = await db
     .insert(designLikes)
     .values({ designId, userId: user.id })
