@@ -90,12 +90,13 @@ async function main() {
         ? sql`select id, color_hex, diameter_mm from charms where id in ${sql(charmIds)}`
         : Promise.resolve([]),
     ]);
-    const byId = new Map<string, { color_hex: string; diameter_mm: string }>();
-    for (const r of [...beadRows, ...charmRows]) byId.set(r.id, r);
+    type Row = { id: string; color_hex: string; diameter_mm: string };
+    const rows = [...beadRows, ...charmRows] as unknown as Row[];
+    const byId = new Map(rows.map((r) => [r.id, r] as const));
 
     const parts: Part[] = components
       .map((c) => byId.get(c.refId))
-      .filter((r): r is { color_hex: string; diameter_mm: string } => Boolean(r))
+      .filter((r): r is Row => Boolean(r))
       .map((r) => ({ colorHex: r.color_hex, diameterMm: Number(r.diameter_mm) }));
 
     const svg = buildSvg(d.base_color ?? "#C7A15A", parts, Number(d.size_cm));

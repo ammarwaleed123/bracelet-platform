@@ -46,13 +46,27 @@ function CameraReset({
   return null;
 }
 
-/** Registers a thumbnail-capture function backed by this canvas's renderer. */
+/** Registers a thumbnail-capture function backed by this canvas's renderer.
+ *  Returns a compact, center-cropped square JPEG (well under the server-action
+ *  body limit) rather than the full-resolution PNG. */
 function CaptureRegistrar() {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     registerCapture(() => {
       gl.render(scene, camera); // ensure a fresh frame is in the buffer
-      return gl.domElement.toDataURL("image/png");
+      const src = gl.domElement;
+      const size = 512;
+      const off = document.createElement("canvas");
+      off.width = size;
+      off.height = size;
+      const ctx = off.getContext("2d");
+      if (!ctx) return null;
+      // Center-crop the (usually wide) canvas to a square, scaled to 512px.
+      const s = Math.min(src.width, src.height);
+      const sx = (src.width - s) / 2;
+      const sy = (src.height - s) / 2;
+      ctx.drawImage(src, sx, sy, s, s, 0, 0, size, size);
+      return off.toDataURL("image/jpeg", 0.82);
     });
     return () => registerCapture(null);
   }, [gl, scene, camera]);
