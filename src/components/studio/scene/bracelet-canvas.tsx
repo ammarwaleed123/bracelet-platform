@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import { useStudioStore } from "@/lib/studio/store";
+import { registerCapture } from "@/lib/studio/capture";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { Bracelet } from "./bracelet";
 
@@ -45,6 +46,19 @@ function CameraReset({
   return null;
 }
 
+/** Registers a thumbnail-capture function backed by this canvas's renderer. */
+function CaptureRegistrar() {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    registerCapture(() => {
+      gl.render(scene, camera); // ensure a fresh frame is in the buffer
+      return gl.domElement.toDataURL("image/png");
+    });
+    return () => registerCapture(null);
+  }, [gl, scene, camera]);
+  return null;
+}
+
 export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const select = useStudioStore((s) => s.select);
@@ -53,7 +67,8 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
     <Canvas
       dpr={[1, 2]} // cap pixel ratio at 2 for performance (spec §4)
       camera={{ position: [0, 6.5, 6], fov: 35, near: 0.1, far: 100 }}
-      gl={{ antialias: true, alpha: false }}
+      // preserveDrawingBuffer lets us read the canvas for design thumbnails.
+      gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
       onPointerMissed={() => select(null)}
     >
       <color attach="background" args={["#f7f4ef"]} />
@@ -93,6 +108,7 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
         maxPolarAngle={1.4}
       />
       <CameraReset controlsRef={controlsRef} />
+      <CaptureRegistrar />
     </Canvas>
   );
 }

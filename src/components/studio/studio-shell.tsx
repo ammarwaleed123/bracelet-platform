@@ -2,15 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { nanoid } from "nanoid";
 import { X } from "lucide-react";
 
 import { useStudioStore } from "@/lib/studio/store";
 import { indexCatalog } from "@/lib/studio/derive";
 import { loadDraft, saveDraft } from "@/lib/studio/persistence";
 import { buildStarterDesign } from "@/lib/studio/starter";
+import type { StudioLoadDesign } from "@/lib/designs/queries";
 import type { StudioCatalog, StudioDesignState } from "@/lib/studio/types";
 import { Palette } from "./palette";
 import { BaseSelector, ClearAllButton, PriceChip, SizeControl, Toolbar } from "./controls";
+import { SaveDesign } from "./save-design";
 import { StageOverlays } from "./stage-overlays";
 import { StudioLoading } from "./studio-loading";
 
@@ -27,15 +30,43 @@ function isFormField(el: EventTarget | null) {
   );
 }
 
-export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
+export function StudioShell({
+  catalog,
+  initial,
+}: {
+  catalog: StudioCatalog;
+  initial?: StudioLoadDesign;
+}) {
   const [ready, setReady] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const initialized = useRef(false);
 
-  // Initialize from the autosaved draft, or a starter bracelet on first visit.
+  // Initialize: an opened/forked design (if any), else the autosaved draft,
+  // else an empty starter on first visit.
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+
+    if (initial) {
+      useStudioStore.getState().loadDesign(
+        {
+          baseId: initial.baseId,
+          sizeCm: initial.sizeCm,
+          components: initial.components.map((c) => ({
+            uid: nanoid(8),
+            kind: c.kind,
+            refId: c.refId,
+          })),
+        },
+        {
+          savedDesignId: initial.ownedDesignId,
+          forkedFromId: initial.forkFromId,
+          designName: initial.name,
+        }
+      );
+      setReady(true);
+      return;
+    }
 
     const index = indexCatalog(catalog);
     const draft = loadDraft(index);
@@ -46,7 +77,7 @@ export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
       setShowHint(true);
     }
     setReady(true);
-  }, [catalog]);
+  }, [catalog, initial]);
 
   // Debounced autosave of the design to localStorage.
   useEffect(() => {
@@ -128,9 +159,12 @@ export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
       {/* Control panel */}
       <aside className="flex w-full shrink-0 flex-col border-t border-border bg-background lg:h-full lg:w-[380px] lg:border-l lg:border-t-0">
         <div className="shrink-0 space-y-5 p-5">
-          <div className="flex items-center justify-between">
-            <BaseSelectorHeading />
-            <ClearAllButton />
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-serif text-lg text-ink">Design</p>
+            <div className="flex items-center gap-3">
+              <ClearAllButton />
+              <SaveDesign catalog={catalog} />
+            </div>
           </div>
           <BaseSelector catalog={catalog} />
           <SizeControl catalog={catalog} />
@@ -141,8 +175,4 @@ export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
       </aside>
     </div>
   );
-}
-
-function BaseSelectorHeading() {
-  return <p className="font-serif text-lg text-ink">Design</p>;
 }
