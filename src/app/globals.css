@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/*
+  Design tokens — milestone 1.1.
+  This is the single source of truth for the brand palette, type, radii and
+  elevation. Components must consume these tokens (bg-cream, text-ink,
+  bg-primary, border-border, ...) and never introduce ad-hoc colors.
+  See docs/PHASE-1-SPEC.md §2.
+*/
+
+@theme {
+  /* ---- Type ---------------------------------------------------------- */
+  /* Serif display for headlines, humanist sans for UI/body. */
+  --font-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+
+  /* ---- Brand palette (raw) ------------------------------------------- */
+  /* Warm off-white base, deep charcoal ink, one champagne-gold accent. */
+  --color-cream: #faf8f5; /* page background */
+  --color-linen: #f6f2eb; /* subtle raised surface */
+  --color-sand: #f2ede5; /* secondary surface */
+  --color-parchment: #ece4d8; /* deeper surface */
+  --color-hairline: #e6ded1; /* borders, dividers */
+  --color-stone: #b7ab97; /* disabled / faint */
+  --color-ink: #211e1a; /* primary text */
+  --color-ink-soft: #6f685c; /* secondary text */
+  --color-gold: #b08d57; /* the accent */
+  --color-gold-strong: #957544; /* accent hover / active */
+  --color-gold-tint: #f3ebdd; /* accent wash (hover surfaces) */
+
+  /* ---- Semantic tokens (shadcn/ui compatible) ------------------------ */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-ink);
+
+  --color-card: #fffdfb;
+  --color-card-foreground: var(--color-ink);
+
+  --color-popover: #fffdfb;
+  --color-popover-foreground: var(--color-ink);
+
+  /* Champagne CTA with charcoal label — reads as luxury and passes AA. */
+  --color-primary: var(--color-gold);
+  --color-primary-foreground: var(--color-ink);
+
+  --color-secondary: var(--color-sand);
+  --color-secondary-foreground: var(--color-ink);
+
+  --color-muted: var(--color-sand);
+  --color-muted-foreground: var(--color-ink-soft);
+
+  /* shadcn "accent" = subtle hover surface, not the brand accent color. */
+  --color-accent: var(--color-gold-tint);
+  --color-accent-foreground: var(--color-ink);
+
+  --color-destructive: #b3261e;
+  --color-destructive-foreground: var(--color-cream);
+
+  --color-border: var(--color-hairline);
+  --color-input: var(--color-hairline);
+  --color-ring: var(--color-gold);
+
+  /* ---- Radii --------------------------------------------------------- */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-2xl: 1rem; /* default surface radius */
+  --radius-3xl: 1.5rem;
+
+  /* ---- Elevation (soft, large-radius; only on real elevation) -------- */
+  --shadow-soft: 0 1px 2px rgba(33, 30, 26, 0.04),
+    0 8px 24px -12px rgba(33, 30, 26, 0.12);
+  --shadow-lift: 0 2px 4px rgba(33, 30, 26, 0.05),
+    0 20px 40px -20px rgba(33, 30, 26, 0.18);
+
+  /* ---- Motion -------------------------------------------------------- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Base layer ----------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: var(--color-gold-tint);
+    color: var(--color-ink);
+  }
+
+  /* Visible, on-brand focus for keyboard users. */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/* A wide-tracked small-caps label — used across the UI for eyebrow labels. */
+@utility label-caps {
+  font-size: 0.6875rem;
+  line-height: 1;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-ink-soft);
+}
+
+/* Respect users who prefer reduced motion — globally neutralize animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
