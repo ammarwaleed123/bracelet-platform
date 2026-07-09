@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Redo2, RotateCcw, Trash2, Undo2, Focus } from "lucide-react";
+import { Focus, Redo2, Undo2 } from "lucide-react";
 
 import { cn, formatPrice } from "@/lib/utils";
 import {
@@ -125,10 +125,8 @@ export function PriceChip({ catalog }: { catalog: StudioCatalog }) {
 export function Toolbar() {
   const canUndo = useStudioStore((s) => s.past.length > 0);
   const canRedo = useStudioStore((s) => s.future.length > 0);
-  const hasComponents = useStudioStore((s) => s.components.length > 0);
   const undo = useStudioStore((s) => s.undo);
   const redo = useStudioStore((s) => s.redo);
-  const clearAll = useStudioStore((s) => s.clearAll);
   const requestCameraReset = useStudioStore((s) => s.requestCameraReset);
 
   return (
@@ -162,26 +160,22 @@ export function Toolbar() {
       >
         <Focus aria-hidden />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={clearAll}
-        disabled={!hasComponents}
-        aria-label="Clear all components"
-        title="Clear all"
-      >
-        <Trash2 aria-hidden />
-      </Button>
     </div>
   );
 }
 
-/** Small standalone reset button used where an icon-only toolbar isn't ideal. */
-export function ResetViewButton() {
-  const requestCameraReset = useStudioStore((s) => s.requestCameraReset);
+/** Text button to clear the whole design, shown in the control panel. */
+export function ClearAllButton() {
+  const hasComponents = useStudioStore((s) => s.components.length > 0);
+  const clearAll = useStudioStore((s) => s.clearAll);
+  if (!hasComponents) return null;
   return (
-    <Button variant="outline" size="sm" onClick={requestCameraReset}>
-      <RotateCcw aria-hidden /> Front view
-    </Button>
+    <button
+      type="button"
+      onClick={clearAll}
+      className="text-xs text-ink-soft underline-offset-2 transition-colors hover:text-destructive hover:underline"
+    >
+      Start over
+    </button>
   );
 }

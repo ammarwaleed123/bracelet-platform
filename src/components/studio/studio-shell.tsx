@@ -10,13 +10,8 @@ import { loadDraft, saveDraft } from "@/lib/studio/persistence";
 import { buildStarterDesign } from "@/lib/studio/starter";
 import type { StudioCatalog, StudioDesignState } from "@/lib/studio/types";
 import { Palette } from "./palette";
-import {
-  BaseSelector,
-  PriceChip,
-  SizeControl,
-  Toolbar,
-} from "./controls";
-import { SelectionPanel } from "./selection-panel";
+import { BaseSelector, ClearAllButton, PriceChip, SizeControl, Toolbar } from "./controls";
+import { StageOverlays } from "./stage-overlays";
 import { StudioLoading } from "./studio-loading";
 
 // The 3D bundle is heavy — load it only on the client with a branded fallback.
@@ -90,20 +85,20 @@ export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
   }, []);
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col lg:flex-row">
+    <div className="flex flex-col lg:h-[calc(100dvh-4rem)] lg:flex-row">
       {/* Stage */}
-      <div className="relative min-h-[45dvh] flex-1 lg:min-h-0">
+      <div className="relative h-[55dvh] w-full shrink-0 lg:h-full lg:min-w-0 lg:flex-1">
         {ready ? <BraceletCanvas catalog={catalog} /> : <StudioLoading />}
 
         {/* Toolbar overlay */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3">
-          <div className="pointer-events-auto rounded-full border border-border bg-background/85 p-1 shadow-soft backdrop-blur">
+        <div className="absolute left-3 top-3">
+          <div className="rounded-full border border-border bg-background/85 p-1 shadow-soft backdrop-blur">
             <Toolbar />
           </div>
         </div>
 
         {/* Live price overlay */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-4">
+        <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
           <div className="pointer-events-auto">
             <PriceChip catalog={catalog} />
           </div>
@@ -111,7 +106,7 @@ export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
 
         {/* First-run hint */}
         {showHint && (
-          <div className="absolute left-3 top-16 max-w-[15rem] rounded-2xl border border-border bg-card/95 p-4 shadow-lift backdrop-blur">
+          <div className="absolute left-3 top-20 max-w-[15rem] rounded-2xl border border-border bg-card/95 p-4 shadow-lift backdrop-blur">
             <button
               type="button"
               onClick={() => setShowHint(false)}
@@ -122,22 +117,34 @@ export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
             </button>
             <p className="font-serif text-base text-ink">Make it yours</p>
             <p className="mt-1 text-sm text-ink-soft">
-              Add stones from the palette, drag beads on the bracelet to
-              rearrange, and tap one to edit it.
+              Add stones from the palette, then drag beads around the bracelet
+              with your finger to arrange them. Tap a bead to see its meaning or
+              remove it.
             </p>
           </div>
         )}
+
+        <StageOverlays catalog={catalog} />
       </div>
 
       {/* Control panel */}
-      <aside className="flex w-full shrink-0 flex-col gap-5 overflow-y-auto border-t border-border bg-background p-5 lg:w-[380px] lg:border-l lg:border-t-0">
-        <BaseSelector catalog={catalog} />
-        <SizeControl catalog={catalog} />
-        <SelectionPanel catalog={catalog} />
-        <div className="min-h-0 flex-1">
+      <aside className="flex w-full shrink-0 flex-col border-t border-border bg-background lg:h-full lg:w-[380px] lg:border-l lg:border-t-0">
+        <div className="shrink-0 space-y-5 p-5">
+          <div className="flex items-center justify-between">
+            <BaseSelectorHeading />
+            <ClearAllButton />
+          </div>
+          <BaseSelector catalog={catalog} />
+          <SizeControl catalog={catalog} />
+        </div>
+        <div className="min-h-0 flex-1 border-t border-border p-5 lg:overflow-hidden">
           <Palette catalog={catalog} />
         </div>
       </aside>
     </div>
   );
+}
+
+function BaseSelectorHeading() {
+  return <p className="font-serif text-lg text-ink">Design</p>;
 }

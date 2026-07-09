@@ -7,15 +7,16 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import { useStudioStore } from "@/lib/studio/store";
 import {
+  computeLayout,
   indexCatalog,
+  nearestSlotIndex,
   resolveComponents,
-  ringRadiusUnits,
-  slotPosition,
 } from "@/lib/studio/derive";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { BaseRing, ComponentMesh } from "./meshes";
 
-const RING_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+// The bracelet lies flat in the XZ plane (y = 0).
+const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 function prefersReducedMotion() {
   return (
@@ -45,9 +46,12 @@ export function Bracelet({
     [index, components]
   );
   const base = baseId ? index.bases.get(baseId) : undefined;
-  const radius = ringRadiusUnits(sizeCm);
 
-  // Drag-to-reorder state kept in refs so window listeners see fresh values.
+  const layout = useMemo(
+    () => computeLayout(resolved.map((c) => c.diameterMm), sizeCm),
+    [resolved, sizeCm]
+  );
+
   const dragUid = useRef<string | null>(null);
   const dragBefore = useRef(useStudioStore.getState().getDesignState());
 
@@ -56,18 +60,31 @@ export function Bracelet({
 
     const slotFromPointer = (clientX: number, clientY: number): number | null => {
       const rect = canvas.getBoundingClientRect();
-      const ndc = {
-        x: ((clientX - rect.left) / rect.width) * 2 - 1,
-        y: -((clientY - rect.top) / rect.height) * 2 + 1,
-      };
-      raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), camera);
+      const ndc = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(ndc, camera);
       const hit = new THREE.Vector3();
-      if (!raycaster.ray.intersectPlane(RING_PLANE, hit)) return null;
-      const count = useStudioStore.getState().components.length;
-      if (count === 0) return null;
-      const angle = Math.atan2(hit.y, hit.x);
-      const raw = ((Math.PI / 2 - angle) / (Math.PI * 2)) * count;
-      return ((Math.round(raw) % count) + count) % count;
+      if (!raycaster.ray.intersectPlane(GROUND_PLANE, hit)) return null;
+
+      const diameters = useStudioStore
+        .getState()
+        .components.map((c) => {
+          const r =
+            c.kind === "bead"
+              ? index.beads.get(c.refId)
+              : index.charms.get(c.refId);
+          return r?.diameterMm ?? 8;
+        });
+      if (diameters.length === 0) return null;
+
+      const { items } = computeLayout(
+        diameters,
+        useStudioStore.getState().sizeCm
+      );
+      const angle = Math.atan2(hit.z, hit.x);
+      return nearestSlotIndex(items, angle);
     };
 
     const onMove = (e: PointerEvent) => {
@@ -90,7 +107,7 @@ export function Bracelet({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [camera, gl, raycaster, controlsRef]);
+  }, [camera, gl, raycaster, controlsRef, index]);
 
   const onDragStart = (uid: string) => {
     dragUid.current = uid;
@@ -102,12 +119,12 @@ export function Bracelet({
 
   return (
     <group>
-      <BaseRing base={base} radius={radius} />
+      <BaseRing base={base} radius={layout.radiusUnits} />
       {resolved.map((c, i) => (
         <ComponentMesh
           key={c.uid}
           resolved={c}
-          position={slotPosition(sizeCm, i, resolved.length)}
+          position={layout.items[i]?.position ?? [0, 0, 0]}
           selected={c.uid === selectedUid}
           animate={animate}
           onSelect={(uid) => useStudioStore.getState().select(uid)}

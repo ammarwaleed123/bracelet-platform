@@ -2,7 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
+import {
+  ContactShadows,
+  Environment,
+  Lightformer,
+  OrbitControls,
+} from "@react-three/drei";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
@@ -10,9 +15,10 @@ import { useStudioStore } from "@/lib/studio/store";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { Bracelet } from "./bracelet";
 
-const FRONT = new THREE.Vector3(0, 0, 8);
+const FRONT = new THREE.Vector3(0, 6.5, 6);
+const ORIGIN = new THREE.Vector3(0, 0, 0);
 
-/** Smoothly returns the camera to the front view when requested. */
+/** Smoothly returns the camera to the default flat-lay view when requested. */
 function CameraReset({
   controlsRef,
 }: {
@@ -32,7 +38,7 @@ function CameraReset({
     camera.position.lerp(FRONT, t);
     const controls = controlsRef.current;
     if (controls) {
-      controls.target.lerp(new THREE.Vector3(0, 0, 0), t);
+      controls.target.lerp(ORIGIN, t);
       controls.update();
     }
     if (camera.position.distanceTo(FRONT) < 0.02) {
@@ -51,44 +57,55 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
   return (
     <Canvas
       dpr={[1, 2]} // cap pixel ratio at 2 for performance (spec §4)
-      camera={{ position: [0, 0, 8], fov: 40, near: 0.1, far: 100 }}
+      camera={{ position: [0, 6.5, 6], fov: 35, near: 0.1, far: 100 }}
       gl={{ antialias: true, alpha: false }}
       onPointerMissed={() => select(null)}
     >
-      <color attach="background" args={["#f6f2eb"]} />
+      <color attach="background" args={["#f7f4ef"]} />
 
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[4, 6, 6]} intensity={1.1} />
-      <directionalLight position={[-5, -2, 3]} intensity={0.35} color="#fff2df" />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[5, 8, 5]} intensity={1.2} />
+      <directionalLight position={[-6, 3, -2]} intensity={0.4} color="#fff2df" />
 
-      {/* Procedural environment for metallic reflections — no external HDRI,
-          baked once (frames=1) to keep the frame budget for interaction. */}
-      <Environment resolution={128} frames={1}>
-        <Lightformer intensity={2.2} position={[0, 3, 4]} scale={[8, 8, 1]} />
+      {/* Procedural environment for gemstone reflections + transmission
+          backdrop — no external HDRI, baked once. */}
+      <Environment resolution={256} frames={1}>
+        <Lightformer intensity={2.4} position={[0, 5, 2]} scale={[10, 10, 1]} />
         <Lightformer
-          intensity={1}
-          position={[-4, 1, 2]}
-          scale={[4, 4, 1]}
+          intensity={1.1}
+          position={[-5, 2, 2]}
+          scale={[5, 5, 1]}
           color="#fff5e6"
         />
         <Lightformer
-          intensity={0.8}
-          position={[4, -1, 2]}
-          scale={[3, 3, 1]}
+          intensity={0.9}
+          position={[5, 1, -2]}
+          scale={[4, 4, 1]}
           color="#ffffff"
         />
       </Environment>
 
       <Bracelet catalog={catalog} controlsRef={controlsRef} />
 
+      {/* Soft photographic shadow on the surface below the bracelet. */}
+      <ContactShadows
+        position={[0, -0.6, 0]}
+        scale={14}
+        blur={2.6}
+        opacity={0.32}
+        far={4}
+        resolution={512}
+        color="#2a2118"
+      />
+
       <OrbitControls
         ref={controlsRef}
         enablePan={false}
         enableDamping
         minDistance={4}
-        maxDistance={14}
-        minPolarAngle={Math.PI / 6}
-        maxPolarAngle={Math.PI - Math.PI / 6}
+        maxDistance={13}
+        minPolarAngle={0.2}
+        maxPolarAngle={1.4}
       />
       <CameraReset controlsRef={controlsRef} />
     </Canvas>

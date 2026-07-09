@@ -27,6 +27,7 @@ export type ResolvedComponent = {
   kind: "bead" | "charm";
   refId: string;
   name: string;
+  meaning: string | null;
   colorHex: string;
   diameterMm: number;
   priceInPiastres: number;
@@ -49,6 +50,7 @@ export function resolveComponent(
       kind: "bead",
       refId: comp.refId,
       name: b.name,
+      meaning: b.meaning,
       colorHex: b.colorHex,
       diameterMm: b.diameterMm,
       priceInPiastres: b.priceInPiastres,
@@ -64,6 +66,7 @@ export function resolveComponent(
     kind: "charm",
     refId: comp.refId,
     name: c.name,
+    meaning: c.meaning,
     colorHex: c.colorHex,
     diameterMm: c.diameterMm,
     priceInPiastres: c.priceInPiastres,
@@ -126,25 +129,63 @@ export function fits(
   return usedLengthMm(index, components) + nextDiameterMm <= circumferenceMm(sizeCm);
 }
 
-/* ----- Layout: even angular distribution around the wrist ring --------- */
-/* Scene units are centimeters. Components are spread evenly around a ring
-   whose circumference equals the wrist size, starting at the top (12 o'clock)
-   and going clockwise. */
+/* ----- Layout: beads strung touching, lying flat in the XZ plane -------- */
+/* Scene units are centimeters. Components are packed edge-to-edge around a
+   ring (like a real strung bracelet) starting at the back and going clockwise;
+   the ring lies flat (y = 0) so it reads as a photographed flat-lay. */
 
-export function ringRadiusUnits(sizeCm: number): number {
-  return sizeCm / (2 * Math.PI);
+export type LayoutItem = {
+  angle: number;
+  position: [number, number, number];
+};
+
+export type BraceletLayout = {
+  radiusUnits: number;
+  items: LayoutItem[];
+};
+
+/** Compute ring radius + each component's flat-lay position from diameters. */
+export function computeLayout(
+  diametersMm: number[],
+  sizeCm: number
+): BraceletLayout {
+  const diamsCm = diametersMm.map((d) => d / 10);
+  const sumLen = diamsCm.reduce((a, b) => a + b, 0);
+  // The ring is at least the wrist size; beads never overlap.
+  const circumference = Math.max(sumLen, sizeCm);
+  const radius = circumference / (2 * Math.PI);
+
+  let cursor = 0;
+  const items = diamsCm.map((d) => {
+    const center = cursor + d / 2;
+    cursor += d;
+    const angle = Math.PI / 2 - (center / circumference) * Math.PI * 2;
+    return {
+      angle,
+      position: [
+        Math.cos(angle) * radius,
+        0,
+        Math.sin(angle) * radius,
+      ] as [number, number, number],
+    };
+  });
+
+  return { radiusUnits: radius, items };
 }
 
-/** Position [x, y, z] (in cm units, XY plane) for slot `i` of `count`. */
-export function slotPosition(
-  sizeCm: number,
-  i: number,
-  count: number
-): [number, number, number] {
-  const r = ringRadiusUnits(sizeCm);
-  if (count === 0) return [0, r, 0];
-  const angle = Math.PI / 2 - (i / count) * Math.PI * 2; // top, clockwise
-  return [Math.cos(angle) * r, Math.sin(angle) * r, 0];
+/** Index of the slot whose center is angularly nearest to `angle`. */
+export function nearestSlotIndex(items: LayoutItem[], angle: number): number {
+  let best = 0;
+  let bestDelta = Infinity;
+  items.forEach((item, i) => {
+    let delta = Math.abs(item.angle - angle);
+    delta = Math.min(delta, Math.PI * 2 - delta); // circular distance
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = i;
+    }
+  });
+  return best;
 }
 
 /** Bead/charm radius in scene units (mm diameter → cm radius). */

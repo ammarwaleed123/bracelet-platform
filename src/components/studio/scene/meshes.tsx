@@ -11,6 +11,7 @@ import type { StudioBase } from "@/lib/studio/types";
 const GOLD = "#b08d57";
 
 /* ------------------------------------------------------------ base ring -- */
+/* A thin strung cord/chain lying flat (rotated into the XZ plane). */
 
 export function BaseRing({
   base,
@@ -19,20 +20,21 @@ export function BaseRing({
   base: StudioBase | undefined;
   radius: number;
 }) {
-  const params = base?.model3dParams;
-  const tube = params?.thickness ?? 0.14;
-  const color = params?.color ?? base?.colorHex ?? GOLD;
-  const metalness = params?.metalness ?? (base?.type === "cord" ? 0 : 0.9);
-  const roughness = params?.roughness ?? (base?.type === "cord" ? 0.8 : 0.25);
+  const isBangle = base?.type === "bangle";
+  const isCord = base?.type === "cord";
+  const tube = isBangle ? 0.22 : 0.035;
+  const color = base?.model3dParams?.color ?? base?.colorHex ?? GOLD;
+  const metalness = isCord ? 0.1 : isBangle ? 0.95 : 0.85;
+  const roughness = isCord ? 0.7 : 0.3;
 
   return (
-    <mesh rotation={[0, 0, 0]}>
-      <torusGeometry args={[radius, tube, 24, 160]} />
+    <mesh rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+      <torusGeometry args={[radius, tube, 20, 200]} />
       <meshStandardMaterial
         color={color}
         metalness={metalness}
         roughness={roughness}
-        envMapIntensity={1}
+        envMapIntensity={1.1}
       />
     </mesh>
   );
@@ -65,7 +67,6 @@ function starShape(points = 5, outer = 0.5, inner = 0.22): THREE.Shape {
 }
 
 function moonShape(): THREE.Shape {
-  // Crescent: an outer disc with an offset disc carved out as a hole.
   const s = new THREE.Shape();
   s.absarc(0, 0, 0.5, 0, Math.PI * 2, false);
   const hole = new THREE.Path();
@@ -74,7 +75,13 @@ function moonShape(): THREE.Shape {
   return s;
 }
 
-const EXTRUDE = { depth: 0.16, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2 };
+const EXTRUDE = {
+  depth: 0.16,
+  bevelEnabled: true,
+  bevelSize: 0.03,
+  bevelThickness: 0.03,
+  bevelSegments: 2,
+};
 
 function useCharmGeometry(shape: ResolvedComponent["charmShape"]) {
   return useMemo(() => {
@@ -86,12 +93,42 @@ function useCharmGeometry(shape: ResolvedComponent["charmShape"]) {
       case "moon":
         return new THREE.ExtrudeGeometry(moonShape(), EXTRUDE).center();
       default:
-        // letter / custom → a small beveled disc plaque.
         return new THREE.CylinderGeometry(0.42, 0.42, 0.16, 40).rotateX(
           Math.PI / 2
         );
     }
   }, [shape]);
+}
+
+/* ------------------------------------------------------- bead material --- */
+
+function beadMaterialProps(resolved: ResolvedComponent) {
+  const mat = resolved.material;
+  const color = mat?.color ?? resolved.colorHex;
+  const isCharm = resolved.kind === "charm";
+
+  if (isCharm) {
+    return {
+      color,
+      metalness: mat?.metalness ?? 1,
+      roughness: mat?.roughness ?? 0.32,
+      transmission: 0,
+    };
+  }
+
+  const transmissionByFinish =
+    resolved.finish === "faceted"
+      ? 0.6
+      : resolved.finish === "polished"
+        ? 0.32
+        : 0; // matte / metallic stay opaque
+
+  return {
+    color,
+    metalness: mat?.metalness ?? 0,
+    roughness: mat?.roughness ?? 0.2,
+    transmission: mat?.transmission ?? transmissionByFinish,
+  };
 }
 
 /* --------------------------------------------------- component (mesh) ---- */
@@ -114,28 +151,24 @@ export function ComponentMesh({
   const group = useRef<THREE.Group>(null);
   const target = useMemo(() => new THREE.Vector3(...position), [position]);
 
-  // Ease toward the target slot position for smooth re-layout.
   useFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
     if (animate) {
-      g.position.lerp(target, Math.min(1, delta * 10));
-      const targetScale = selected ? 1.12 : 1;
+      g.position.lerp(target, Math.min(1, delta * 12));
+      const scale = selected ? 1.1 : 1;
       g.scale.setScalar(
-        THREE.MathUtils.lerp(g.scale.x, targetScale, Math.min(1, delta * 12))
+        THREE.MathUtils.lerp(g.scale.x, scale, Math.min(1, delta * 14))
       );
     } else {
       g.position.copy(target);
-      g.scale.setScalar(selected ? 1.12 : 1);
+      g.scale.setScalar(selected ? 1.1 : 1);
     }
   });
 
-  const color = resolved.material?.color ?? resolved.colorHex;
-  const isCharm = resolved.kind === "charm";
-  const roughness = resolved.material?.roughness ?? (isCharm ? 0.3 : 0.3);
-  const metalness = resolved.material?.metalness ?? (isCharm ? 1 : 0);
   const radius = componentRadiusUnits(resolved.diameterMm);
-
+  const isCharm = resolved.kind === "charm";
+  const mat = beadMaterialProps(resolved);
   const charmGeometry = useCharmGeometry(resolved.charmShape);
 
   return (
@@ -159,36 +192,43 @@ export function ComponentMesh({
       }}
     >
       {isCharm ? (
-        <mesh geometry={charmGeometry} scale={radius / 0.5}>
+        <mesh geometry={charmGeometry} scale={radius / 0.5} castShadow>
           <meshStandardMaterial
-            color={color}
-            metalness={metalness}
-            roughness={roughness}
-            envMapIntensity={1.1}
+            color={mat.color}
+            metalness={mat.metalness}
+            roughness={mat.roughness}
+            envMapIntensity={1.2}
           />
         </mesh>
       ) : (
-        <mesh>
-          <sphereGeometry args={[radius, 32, 32]} />
-          <meshStandardMaterial
-            color={color}
-            metalness={metalness}
-            roughness={roughness}
-            envMapIntensity={1}
+        <mesh castShadow>
+          <sphereGeometry args={[radius, 48, 48]} />
+          <meshPhysicalMaterial
+            color={mat.color}
+            metalness={mat.metalness}
+            roughness={mat.roughness}
+            transmission={mat.transmission}
+            thickness={radius * 3}
+            ior={1.5}
+            clearcoat={0.3}
+            clearcoatRoughness={0.4}
+            attenuationColor={mat.color}
+            attenuationDistance={1.2}
+            envMapIntensity={1.2}
+            specularIntensity={1}
           />
         </mesh>
       )}
 
-      {/* Selection halo */}
       {selected && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[radius * 1.35, 0.025, 12, 48]} />
+          <torusGeometry args={[radius * 1.3, 0.02, 12, 64]} />
           <meshStandardMaterial
             color={GOLD}
             metalness={0.6}
             roughness={0.3}
             emissive={GOLD}
-            emissiveIntensity={0.4}
+            emissiveIntensity={0.5}
           />
         </mesh>
       )}
