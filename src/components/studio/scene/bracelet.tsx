@@ -76,9 +76,6 @@ export function Bracelet({
       const hit = pointerToGround(e.clientX, e.clientY);
       if (!hit) return;
 
-      // The dragged bead visually follows the finger (lifted slightly).
-      dragPointRef.current = new THREE.Vector3(hit.x, 0.3, hit.z);
-
       const diameters = useStudioStore.getState().components.map((c) => {
         const r =
           c.kind === "bead"
@@ -88,11 +85,21 @@ export function Bracelet({
       });
       if (diameters.length === 0) return;
 
-      const { items } = computeLayout(diameters, useStudioStore.getState().sizeCm);
+      const layout = computeLayout(diameters, useStudioStore.getState().sizeCm);
       const angle = Math.atan2(hit.z, hit.x);
+
+      // The dragged bead stays flat on the string, gliding to the cursor's
+      // angle around the ring (never lifting off).
+      const r = layout.radiusUnits;
+      dragPointRef.current = new THREE.Vector3(
+        Math.cos(angle) * r,
+        0,
+        Math.sin(angle) * r
+      );
+
       useStudioStore
         .getState()
-        .moveLive(dragUidRef.current, nearestSlotIndex(items, angle));
+        .moveLive(dragUidRef.current, nearestSlotIndex(layout.items, angle));
     };
 
     const onUp = () => {

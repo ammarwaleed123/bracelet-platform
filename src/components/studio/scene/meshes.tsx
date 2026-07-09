@@ -188,14 +188,15 @@ export function ComponentMesh({
     const goal = dragging ? dragPointRef.current! : target;
 
     if (animate) {
-      g.position.lerp(goal, Math.min(1, delta * (dragging ? 20 : 8)));
-      const scale = dragging ? 1.18 : selected ? 1.08 : 1;
+      // Dragged bead tracks the cursor tightly; the rest ease over to make room.
+      g.position.lerp(goal, Math.min(1, delta * (dragging ? 25 : 9)));
+      const scale = selected ? 1.06 : 1; // stays flat — no lifting/popping
       g.scale.setScalar(
         THREE.MathUtils.lerp(g.scale.x, scale, Math.min(1, delta * 12))
       );
     } else {
       g.position.copy(goal);
-      g.scale.setScalar(selected ? 1.08 : 1);
+      g.scale.setScalar(selected ? 1.06 : 1);
     }
   });
 
