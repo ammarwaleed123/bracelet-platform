@@ -56,6 +56,13 @@ export const designStatus = pgEnum("design_status", [
   "published_public",
 ]);
 
+/** Moderation state for community designs submitted to the public gallery. */
+export const moderationStatus = pgEnum("moderation_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
 /* --------------------------------------------------------- json shapes -- */
 
 /** Params the studio uses to render a base (torus/cord path + material). */
@@ -96,6 +103,13 @@ export type DesignComponent = {
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(), // matches auth.users.id
   fullName: text("full_name"),
+  /** Opt-in public name shown as "Designed by …" on gallery designs. */
+  displayName: text("display_name"),
+  /** Creator earnings held as store credit (integer piastres). The commission
+   *  engine that fills this lands after milestone 1.5 (needs orders). */
+  storeCreditInPiastres: integer("store_credit_in_piastres")
+    .notNull()
+    .default(0),
   role: userRole("role").notNull().default("customer"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -243,6 +257,11 @@ export const designs = pgTable("designs", {
   }),
   name: text("name").notNull(),
   status: designStatus("status").notNull().default("draft"),
+  /** For public submissions. Defaults to approved so brand/curated designs are
+   *  visible immediately; customer submissions are set to pending on publish. */
+  moderationStatus: moderationStatus("moderation_status")
+    .notNull()
+    .default("approved"),
   baseId: uuid("base_id").references(() => bases.id, { onDelete: "set null" }),
   sizeCm: numeric("size_cm", { precision: 4, scale: 1 })
     .notNull()
