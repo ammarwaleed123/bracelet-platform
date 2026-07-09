@@ -235,7 +235,8 @@ export type StudioLoadDesign = {
  */
 export async function getDesignForStudio(
   publicId: string,
-  viewerId?: string
+  viewerId?: string,
+  isAdmin = false
 ): Promise<StudioLoadDesign | null> {
   const [row] = await db
     .select({
@@ -256,15 +257,18 @@ export async function getDesignForStudio(
   const isOwner = viewerId && row.ownerId === viewerId;
   const isPublic =
     row.status === "published_public" && row.moderationStatus === "approved";
-  if (!isOwner && !isPublic) return null;
+  // Admins may edit any design in place; owners edit their own; others fork
+  // only public, approved designs.
+  const canEdit = Boolean(isOwner) || isAdmin;
+  if (!canEdit && !isPublic) return null;
 
   return {
     name: row.name,
     baseId: row.baseId,
     sizeCm: Number(row.sizeCm),
     components: row.componentsJson.map((c) => ({ kind: c.kind, refId: c.refId })),
-    ownedDesignId: isOwner ? row.id : null,
-    forkFromId: isOwner ? null : row.id,
+    ownedDesignId: canEdit ? row.id : null,
+    forkFromId: canEdit ? null : row.id,
   };
 }
 

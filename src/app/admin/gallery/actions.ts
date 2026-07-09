@@ -26,3 +26,11 @@ export async function rejectDesign(id: string) {
   revalidatePath("/admin/gallery");
   revalidatePath("/gallery");
 }
+
+/** Admin removes any design from the gallery entirely. */
+export async function deleteGalleryDesign(id: string) {
+  await requireAdmin();
+  await db.delete(designs).where(eq(designs.id, id));
+  revalidatePath("/admin/gallery");
+  revalidatePath("/gallery");
+}

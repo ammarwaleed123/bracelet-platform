@@ -1,15 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { designs, profiles } from "@/lib/db/schema";
-import { formatPrice } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { AdminTable } from "@/components/admin/list";
-import { ModerationActions } from "@/components/admin/moderation-actions";
+import { GalleryRowActions } from "@/components/admin/moderation-actions";
 
 export default async function AdminGalleryPage() {
-  const pending = await db
+  const rows = await db
     .select({
       id: designs.id,
       publicId: designs.publicId,
@@ -17,32 +17,37 @@ export default async function AdminGalleryPage() {
       thumbnailUrl: designs.thumbnailUrl,
       price: designs.priceSnapshotInPiastres,
       creator: profiles.displayName,
-      createdAt: designs.createdAt,
+      moderationStatus: designs.moderationStatus,
     })
     .from(designs)
     .leftJoin(profiles, eq(designs.ownerId, profiles.id))
-    .where(
-      and(
-        eq(designs.status, "published_public"),
-        eq(designs.moderationStatus, "pending")
-      )
-    )
-    .orderBy(desc(designs.createdAt));
+    .where(eq(designs.status, "published_public"))
+    // Pending first (needs action), then most recent.
+    .orderBy(
+      sql`case when ${designs.moderationStatus} = 'pending' then 0 else 1 end`,
+      desc(designs.createdAt)
+    );
+
+  const pendingCount = rows.filter(
+    (r) => r.moderationStatus === "pending"
+  ).length;
 
   return (
     <div>
       <h2 className="mb-2 font-serif text-xl text-ink">
-        Moderation queue{" "}
-        <span className="text-ink-soft">({pending.length})</span>
+        Gallery designs <span className="text-ink-soft">({rows.length})</span>
       </h2>
       <p className="mb-6 text-sm text-ink-soft">
-        Community designs awaiting review. Approved designs appear in the public
-        gallery.
+        {pendingCount > 0
+          ? `${pendingCount} awaiting review. `
+          : "Nothing awaiting review. "}
+        Approve or reject community submissions, edit any design in the studio,
+        or remove one from the gallery.
       </p>
 
-      {pending.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border py-16 text-center text-ink-soft">
-          Nothing to review right now.
+          No published designs yet.
         </div>
       ) : (
         <AdminTable>
@@ -52,12 +57,13 @@ export default async function AdminGalleryPage() {
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Creator</th>
               <th className="px-4 py-3 font-medium">Price</th>
-              <th className="px-4 py-3 font-medium">Review</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {pending.map((d) => (
-              <tr key={d.id} className="border-t border-border">
+            {rows.map((d) => (
+              <tr key={d.id} className="border-t border-border align-middle">
                 <td className="px-4 py-3">
                   <div className="relative size-12 overflow-hidden rounded-lg border border-border bg-linen">
                     {d.thumbnailUrl && (
@@ -85,7 +91,14 @@ export default async function AdminGalleryPage() {
                 </td>
                 <td className="px-4 py-3 tabular-nums">{formatPrice(d.price)}</td>
                 <td className="px-4 py-3">
-                  <ModerationActions designId={d.id} />
+                  <StatusBadge status={d.moderationStatus} />
+                </td>
+                <td className="px-4 py-3">
+                  <GalleryRowActions
+                    designId={d.id}
+                    publicId={d.publicId}
+                    isPending={d.moderationStatus === "pending"}
+                  />
                 </td>
               </tr>
             ))}
@@ -93,5 +106,20 @@ export default async function AdminGalleryPage() {
         </AdminTable>
       )}
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+        status === "approved" && "bg-gold-tint text-gold-strong",
+        status === "pending" && "bg-sand text-ink",
+        status === "rejected" && "bg-destructive/10 text-destructive"
+      )}
+    >
+      {status}
+    </span>
   );
 }

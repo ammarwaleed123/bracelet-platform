@@ -335,7 +335,7 @@ export function ComponentMesh({
       )}
 
       {selected && (
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <mesh name="selection-halo" rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[beadRadius * 1.3, 0.02, 12, 64]} />
           <meshStandardMaterial
             color={GOLD}

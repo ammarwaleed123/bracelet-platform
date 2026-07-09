@@ -53,13 +53,20 @@ function CaptureRegistrar() {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     registerCapture(() => {
-      // Hide the ground shadow so the thumbnail is clean (keep it in the live
-      // scene), then render a fresh frame.
-      const shadow = scene.getObjectByName("soft-shadow");
-      const wasVisible = shadow?.visible ?? true;
-      if (shadow) shadow.visible = false;
+      // Hide the ground shadow and any selection halo so the thumbnail is clean
+      // (they stay in the live scene), then render a fresh frame.
+      const hidden: THREE.Object3D[] = [];
+      scene.traverse((o) => {
+        if (
+          (o.name === "soft-shadow" || o.name === "selection-halo") &&
+          o.visible
+        ) {
+          o.visible = false;
+          hidden.push(o);
+        }
+      });
       gl.render(scene, camera);
-      if (shadow) shadow.visible = wasVisible;
+      for (const o of hidden) o.visible = true;
 
       const src = gl.domElement;
       const size = 640;
@@ -72,7 +79,7 @@ function CaptureRegistrar() {
       // with a small margin.
       ctx.fillStyle = "#f7f4ef";
       ctx.fillRect(0, 0, size, size);
-      const margin = 0.06;
+      const margin = 0.03;
       const box = size * (1 - margin * 2);
       const scale = Math.min(box / src.width, box / src.height);
       const dw = src.width * scale;

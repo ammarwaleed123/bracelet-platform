@@ -39,6 +39,18 @@ export async function ensureProfile(user: User): Promise<void> {
     .onConflictDoNothing();
 }
 
+/** Whether the current user is an admin (false if signed out). */
+export async function currentUserIsAdmin(): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  const [profile] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, user.id))
+    .limit(1);
+  return profile?.role === "admin";
+}
+
 /**
  * Require an admin. Reads the role from `profiles` (via Drizzle, which runs on
  * the Postgres role and is the authoritative check). Non-admins are sent home

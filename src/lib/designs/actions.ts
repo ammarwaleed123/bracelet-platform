@@ -54,15 +54,29 @@ export async function saveDesign(
   let publicId: string;
 
   if (d.designId) {
-    // Update only if it belongs to the user.
-    const [owned] = await db
-      .select({ id: designs.id, publicId: designs.publicId })
+    // Update if it belongs to the user, or the user is an admin (curation).
+    const [existing] = await db
+      .select({
+        id: designs.id,
+        ownerId: designs.ownerId,
+        publicId: designs.publicId,
+      })
       .from(designs)
-      .where(and(eq(designs.id, d.designId), eq(designs.ownerId, user.id)))
+      .where(eq(designs.id, d.designId))
       .limit(1);
-    if (!owned) return { ok: false, error: "Design not found." };
-    designId = owned.id;
-    publicId = owned.publicId;
+    if (!existing) return { ok: false, error: "Design not found." };
+    if (existing.ownerId !== user.id) {
+      const [profile] = await db
+        .select({ role: profiles.role })
+        .from(profiles)
+        .where(eq(profiles.id, user.id))
+        .limit(1);
+      if (profile?.role !== "admin") {
+        return { ok: false, error: "Design not found." };
+      }
+    }
+    designId = existing.id;
+    publicId = existing.publicId;
 
     await db
       .update(designs)
