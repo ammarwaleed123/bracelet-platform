@@ -112,10 +112,14 @@ export function PriceChip({ catalog }: { catalog: StudioCatalog }) {
   const price = computePriceInPiastres(index, baseId, components);
 
   return (
-    <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 shadow-soft">
-      <span className="label-caps">Total</span>
-      <span className="font-serif text-lg text-ink">{formatPrice(price)}</span>
-      <span className="text-xs text-ink-soft">
+    <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 shadow-soft sm:gap-3 sm:px-4">
+      {/* Label + piece count are hidden on small screens to keep the chip
+          narrow so it never reaches the toolbar. */}
+      <span className="label-caps hidden sm:inline">Total</span>
+      <span className="font-serif text-base text-ink sm:text-lg">
+        {formatPrice(price)}
+      </span>
+      <span className="hidden text-xs text-ink-soft sm:inline">
         {components.length} {components.length === 1 ? "piece" : "pieces"}
       </span>
     </div>
