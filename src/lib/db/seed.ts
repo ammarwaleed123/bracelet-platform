@@ -1,21 +1,63 @@
 import { config } from "dotenv";
-import postgres from "postgres";
+import { isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { nanoid } from "nanoid";
+import postgres from "postgres";
 
 import * as schema from "./schema";
+import type { Material3dParams, Model3dParams } from "./schema";
+import {
+  seedBases,
+  seedBeads,
+  seedCategories,
+  seedCharms,
+  seedCollections,
+  seedDesigns,
+  type BaseType,
+  type BeadFinish,
+} from "./seed-data";
 
-// Seed runs as a standalone script (`npm run db:seed`), outside Next, so load
-// .env.local and open our own connection rather than reusing the app client.
+// Standalone script (`npm run db:seed`), outside Next — load env + own client.
 config({ path: ".env.local" });
 
-/**
- * Seed script skeleton.
- *
- * Milestone 1.1 wires this up and proves the connection. The real catalog
- * (~6 bases, ~40 beads, ~15 charms, 3 collections, ~20 brand designs — see
- * docs/PHASE-1-SPEC.md §10) is populated in milestone 1.2 once those tables
- * exist. Keep this idempotent: running it repeatedly must be safe.
- */
+/** URL/slug-safe: lowercase, non-alphanumerics collapsed to single hyphens. */
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const egpToPiastres = (egp: number) => Math.round(egp * 100);
+
+function baseParams(type: BaseType, colorHex: string): Model3dParams {
+  switch (type) {
+    case "chain":
+      return { color: colorHex, thickness: 0.14, metalness: 0.9, roughness: 0.25 };
+    case "cord":
+      return { color: colorHex, thickness: 0.22, metalness: 0, roughness: 0.85 };
+    case "bangle":
+      return { color: colorHex, thickness: 0.3, metalness: 0.9, roughness: 0.2 };
+  }
+}
+
+function beadParams(
+  finish: BeadFinish,
+  colorHex: string,
+  transmission?: number
+): Material3dParams {
+  switch (finish) {
+    case "polished":
+      return { color: colorHex, roughness: 0.25, metalness: 0 };
+    case "matte":
+      return { color: colorHex, roughness: 0.85, metalness: 0 };
+    case "faceted":
+      return { color: colorHex, roughness: 0.1, metalness: 0, transmission: transmission ?? 0.4 };
+    case "metallic":
+      return { color: colorHex, roughness: 0.3, metalness: 1 };
+  }
+}
+
 async function seed() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -27,13 +69,192 @@ async function seed() {
   const client = postgres(databaseUrl, { prepare: false, max: 1 });
   const db = drizzle(client, { schema, casing: "snake_case" });
 
-  console.log("🌱 Seeding database…");
+  console.log("🌱 Seeding catalog…");
 
-  // TODO(1.2): insert catalog, collections, and brand designs here.
-  // Placeholder verifies the connection is live and the schema is reachable.
-  void db;
+  // 1) Clear existing seed data. Only brand designs (no owner) are removed so
+  //    real user designs are never touched. Join tables cascade on delete.
+  await db.delete(schema.collectionDesigns);
+  await db.delete(schema.designs).where(isNull(schema.designs.ownerId));
+  await db.delete(schema.collections);
+  await db.delete(schema.beadCategories);
+  await db.delete(schema.charmCategories);
+  await db.delete(schema.beads);
+  await db.delete(schema.charms);
+  await db.delete(schema.bases);
+  await db.delete(schema.categories);
 
-  console.log("✅ Seed complete (skeleton — catalog arrives in milestone 1.2).");
+  // 2) Categories.
+  const categoryRows = await db
+    .insert(schema.categories)
+    .values(
+      seedCategories.map((c, i) => ({ name: c.name, slug: c.slug, sortOrder: i }))
+    )
+    .returning({ id: schema.categories.id, slug: schema.categories.slug });
+  const categoryId = new Map(categoryRows.map((r) => [r.slug, r.id]));
+
+  // 3) Bases.
+  const baseRows = await db
+    .insert(schema.bases)
+    .values(
+      seedBases.map((b, i) => ({
+        name: b.name,
+        slug: slugify(b.name),
+        type: b.type,
+        material: b.material,
+        colorHex: b.colorHex,
+        priceInPiastres: egpToPiastres(b.egp),
+        model3dParams: baseParams(b.type, b.colorHex),
+        stockQuantity: b.stock,
+        sortOrder: i,
+      }))
+    )
+    .returning({
+      id: schema.bases.id,
+      slug: schema.bases.slug,
+      price: schema.bases.priceInPiastres,
+    });
+  const base = new Map(baseRows.map((r) => [r.slug, r]));
+
+  // 4) Beads (+ category links).
+  const beadRows = await db
+    .insert(schema.beads)
+    .values(
+      seedBeads.map((b, i) => ({
+        name: b.name,
+        slug: slugify(b.name),
+        stoneType: b.stoneType,
+        meaning: b.meaning,
+        colorHex: b.colorHex,
+        finish: b.finish,
+        diameterMm: String(b.diameterMm),
+        priceInPiastres: egpToPiastres(b.egp),
+        material3dParams: beadParams(b.finish, b.colorHex, b.transmission),
+        stockQuantity: 100,
+        sortOrder: i,
+      }))
+    )
+    .returning({
+      id: schema.beads.id,
+      slug: schema.beads.slug,
+      price: schema.beads.priceInPiastres,
+    });
+  const bead = new Map(beadRows.map((r) => [r.slug, r]));
+
+  const beadCategoryValues = seedBeads.flatMap((b) => {
+    const beadId = bead.get(slugify(b.name))!.id;
+    return b.categories
+      .map((slug) => categoryId.get(slug))
+      .filter((id): id is string => Boolean(id))
+      .map((catId) => ({ beadId, categoryId: catId }));
+  });
+  if (beadCategoryValues.length) {
+    await db.insert(schema.beadCategories).values(beadCategoryValues);
+  }
+
+  // 5) Charms (+ category links).
+  const charmRows = await db
+    .insert(schema.charms)
+    .values(
+      seedCharms.map((c, i) => ({
+        name: c.name,
+        slug: slugify(c.name),
+        meaning: c.meaning,
+        colorHex: c.colorHex,
+        finish: "metallic" as const,
+        charmShape: c.shape,
+        letterValue: c.letterValue ?? null,
+        priceInPiastres: egpToPiastres(c.egp),
+        material3dParams: beadParams("metallic", c.colorHex),
+        stockQuantity: 100,
+        sortOrder: i,
+      }))
+    )
+    .returning({
+      id: schema.charms.id,
+      slug: schema.charms.slug,
+      price: schema.charms.priceInPiastres,
+    });
+  const charm = new Map(charmRows.map((r) => [r.slug, r]));
+
+  const charmCategoryValues = seedCharms.flatMap((c) => {
+    const charmId = charm.get(slugify(c.name))!.id;
+    return c.categories
+      .map((slug) => categoryId.get(slug))
+      .filter((id): id is string => Boolean(id))
+      .map((catId) => ({ charmId, categoryId: catId }));
+  });
+  if (charmCategoryValues.length) {
+    await db.insert(schema.charmCategories).values(charmCategoryValues);
+  }
+
+  // 6) Collections.
+  const collectionRows = await db
+    .insert(schema.collections)
+    .values(
+      seedCollections.map((c, i) => ({
+        name: c.name,
+        slug: c.slug,
+        description: c.description,
+        sortOrder: i,
+      }))
+    )
+    .returning({ id: schema.collections.id, slug: schema.collections.slug });
+  const collectionId = new Map(collectionRows.map((r) => [r.slug, r.id]));
+
+  // 7) Brand designs — price recomputed from the catalog, never trusted input.
+  let designCount = 0;
+  const collectionLinks: { collectionId: string; designId: string; sortOrder: number }[] = [];
+
+  for (const plan of seedDesigns) {
+    const baseRow = base.get(plan.baseSlug);
+    if (!baseRow) throw new Error(`Seed design "${plan.name}": unknown base ${plan.baseSlug}`);
+
+    const components = plan.components.map((ref, slot) => {
+      const [kind, slug] = ref.split(":") as ["bead" | "charm", string];
+      const row = kind === "bead" ? bead.get(slug) : charm.get(slug);
+      if (!row) throw new Error(`Seed design "${plan.name}": unknown ${kind} ${slug}`);
+      return { slot, kind, refId: row.id, price: row.price };
+    });
+
+    const priceSnapshot =
+      baseRow.price + components.reduce((sum, c) => sum + c.price, 0);
+
+    const [designRow] = await db
+      .insert(schema.designs)
+      .values({
+        publicId: nanoid(10),
+        ownerId: null,
+        name: plan.name,
+        status: "published_public",
+        baseId: baseRow.id,
+        sizeCm: String(plan.sizeCm),
+        componentsJson: components.map((c) => ({
+          slot: c.slot,
+          kind: c.kind,
+          refId: c.refId,
+        })),
+        priceSnapshotInPiastres: priceSnapshot,
+      })
+      .returning({ id: schema.designs.id });
+
+    designCount++;
+    plan.collections.forEach((slug, i) => {
+      const cid = collectionId.get(slug);
+      if (cid && designRow) {
+        collectionLinks.push({ collectionId: cid, designId: designRow.id, sortOrder: i });
+      }
+    });
+  }
+
+  if (collectionLinks.length) {
+    await db.insert(schema.collectionDesigns).values(collectionLinks);
+  }
+
+  console.log(
+    `✅ Seeded ${seedCategories.length} categories, ${baseRows.length} bases, ` +
+      `${beadRows.length} beads, ${charmRows.length} charms, ` +
+      `${collectionRows.length} collections, ${designCount} brand designs.`
+  );
 
   await client.end();
 }
