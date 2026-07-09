@@ -46,7 +46,11 @@ export function SoftShadow({ radius }: { radius: number }) {
   const texture = useMemo(() => softShadowTexture(), []);
   const size = radius * 2.6 + 0.6;
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.46, 0]}>
+    <mesh
+      name="soft-shadow"
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, -0.46, 0]}
+    >
       <planeGeometry args={[size, size]} />
       <meshBasicMaterial
         map={texture}
@@ -331,7 +335,7 @@ export function ComponentMesh({
       )}
 
       {selected && (
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <mesh name="selection-halo" rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[beadRadius * 1.3, 0.02, 12, 64]} />
           <meshStandardMaterial
             color={GOLD}

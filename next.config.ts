@@ -3,6 +3,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // Design saves include a compact thumbnail; give server actions headroom.
+    serverActions: { bodySizeLimit: "3mb" },
+  },
   // Pin the tracing root to this project. An unrelated lockfile in the home
   // directory otherwise makes Next infer the wrong workspace root, which
   // breaks output file tracing on Vercel.

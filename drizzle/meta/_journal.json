@@ -15,6 +15,13 @@
       "when": 1783562607581,
       "tag": "0001_luxuriant_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783626637097,
+      "tag": "0002_blue_shadow_king",
+      "breakpoints": true
     }
   ]
 }

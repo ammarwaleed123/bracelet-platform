@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import { useStudioStore } from "@/lib/studio/store";
+import { registerCapture } from "@/lib/studio/capture";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { Bracelet } from "./bracelet";
 
@@ -45,6 +46,52 @@ function CameraReset({
   return null;
 }
 
+/** Registers a thumbnail-capture function backed by this canvas's renderer.
+ *  Returns a compact, center-cropped square JPEG (well under the server-action
+ *  body limit) rather than the full-resolution PNG. */
+function CaptureRegistrar() {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    registerCapture(() => {
+      // Hide the ground shadow and any selection halo so the thumbnail is clean
+      // (they stay in the live scene), then render a fresh frame.
+      const hidden: THREE.Object3D[] = [];
+      scene.traverse((o) => {
+        if (
+          (o.name === "soft-shadow" || o.name === "selection-halo") &&
+          o.visible
+        ) {
+          o.visible = false;
+          hidden.push(o);
+        }
+      });
+      gl.render(scene, camera);
+      for (const o of hidden) o.visible = true;
+
+      const src = gl.domElement;
+      const size = 640;
+      const off = document.createElement("canvas");
+      off.width = size;
+      off.height = size;
+      const ctx = off.getContext("2d");
+      if (!ctx) return null;
+      // Premium framing: the bracelet contained and centered on a cream square
+      // with a small margin.
+      ctx.fillStyle = "#f7f4ef";
+      ctx.fillRect(0, 0, size, size);
+      const margin = 0.03;
+      const box = size * (1 - margin * 2);
+      const scale = Math.min(box / src.width, box / src.height);
+      const dw = src.width * scale;
+      const dh = src.height * scale;
+      ctx.drawImage(src, (size - dw) / 2, (size - dh) / 2, dw, dh);
+      return off.toDataURL("image/jpeg", 0.85);
+    });
+    return () => registerCapture(null);
+  }, [gl, scene, camera]);
+  return null;
+}
+
 export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const select = useStudioStore((s) => s.select);
@@ -53,7 +100,8 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
     <Canvas
       dpr={[1, 2]} // cap pixel ratio at 2 for performance (spec §4)
       camera={{ position: [0, 6.5, 6], fov: 35, near: 0.1, far: 100 }}
-      gl={{ antialias: true, alpha: false }}
+      // preserveDrawingBuffer lets us read the canvas for design thumbnails.
+      gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
       onPointerMissed={() => select(null)}
     >
       <color attach="background" args={["#f7f4ef"]} />
@@ -93,6 +141,7 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
         maxPolarAngle={1.4}
       />
       <CameraReset controlsRef={controlsRef} />
+      <CaptureRegistrar />
     </Canvas>
   );
 }

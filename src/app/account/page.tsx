@@ -6,9 +6,12 @@ import { eq } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
+import { getUserDesigns } from "@/lib/designs/queries";
+import { formatPrice } from "@/lib/utils";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { AccountDesigns } from "@/components/account/account-designs";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -22,32 +25,46 @@ export default async function AccountPage() {
     redirect("/sign-in");
   }
 
-  const [profile] = await db
-    .select({ role: profiles.role })
-    .from(profiles)
-    .where(eq(profiles.id, user.id))
-    .limit(1);
+  const [[profile], designs] = await Promise.all([
+    db
+      .select({ role: profiles.role, credit: profiles.storeCreditInPiastres })
+      .from(profiles)
+      .where(eq(profiles.id, user.id))
+      .limit(1),
+    getUserDesigns(user.id),
+  ]);
   const isAdmin = profile?.role === "admin";
+  const storeCredit = profile?.credit ?? 0;
 
   const name =
     (user.user_metadata?.full_name as string | undefined) ?? user.email;
 
   return (
     <Container className="py-16">
-      <p className="label-caps">Account</p>
-      <h1 className="mt-3 font-serif text-4xl text-ink">Hello, {name}</h1>
-      <p className="mt-3 max-w-md text-ink-soft">
-        Your orders, saved designs, and addresses will live here. The full
-        dashboard arrives with the commerce milestone.
-      </p>
-      <div className="mt-8 flex flex-wrap gap-3">
-        {isAdmin && (
-          <Button asChild variant="secondary">
-            <Link href="/admin">Open admin</Link>
-          </Button>
-        )}
-        <SignOutButton />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="label-caps">Account</p>
+          <h1 className="mt-3 font-serif text-4xl text-ink">Hello, {name}</h1>
+          {storeCredit > 0 && (
+            <p className="mt-2 text-sm text-gold-strong">
+              Store credit: {formatPrice(storeCredit)}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {isAdmin && (
+            <Button asChild variant="secondary">
+              <Link href="/admin">Open admin</Link>
+            </Button>
+          )}
+          <SignOutButton />
+        </div>
       </div>
+
+      <section className="mt-12">
+        <h2 className="mb-4 font-serif text-2xl text-ink">Your designs</h2>
+        <AccountDesigns designs={designs} />
+      </section>
     </Container>
   );
 }

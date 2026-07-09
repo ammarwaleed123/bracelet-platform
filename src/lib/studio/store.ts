@@ -15,10 +15,26 @@ type StudioState = StudioDesignState & {
   future: StudioDesignState[];
   /** Bumping this signals the scene to reset the camera to the front view. */
   cameraResetNonce: number;
+  /* ---- Save context (metadata, not part of undo history) ---- */
+  /** Id of the saved design being edited (null = unsaved / new). */
+  savedDesignId: string | null;
+  /** Id of the public design this was forked from (lineage). */
+  forkedFromId: string | null;
+  /** Current design name (once saved / loaded). */
+  designName: string | null;
+};
+
+export type SaveMeta = {
+  savedDesignId: string | null;
+  forkedFromId: string | null;
+  designName: string | null;
 };
 
 type StudioActions = {
   hydrate: (state: StudioDesignState) => void;
+  /** Load an existing/forked design with its save metadata. */
+  loadDesign: (state: StudioDesignState, meta: SaveMeta) => void;
+  setSaveMeta: (meta: Partial<SaveMeta>) => void;
   getDesignState: () => StudioDesignState;
   setBase: (baseId: string) => void;
   setSize: (sizeCm: number) => void;
@@ -69,6 +85,9 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
   past: [],
   future: [],
   cameraResetNonce: 0,
+  savedDesignId: null,
+  forkedFromId: null,
+  designName: null,
 
   hydrate: (state) =>
     set({
@@ -78,7 +97,25 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
       selectedUid: null,
       past: [],
       future: [],
+      savedDesignId: null,
+      forkedFromId: null,
+      designName: null,
     }),
+
+  loadDesign: (state, meta) =>
+    set({
+      baseId: state.baseId,
+      sizeCm: state.sizeCm,
+      components: state.components,
+      selectedUid: null,
+      past: [],
+      future: [],
+      savedDesignId: meta.savedDesignId,
+      forkedFromId: meta.forkedFromId,
+      designName: meta.designName,
+    }),
+
+  setSaveMeta: (meta) => set((s) => ({ ...s, ...meta })),
 
   getDesignState: () => snap(get()),
 
