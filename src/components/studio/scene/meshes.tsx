@@ -156,6 +156,27 @@ function useCharmGeometry(resolved: ResolvedComponent) {
   }, [charmShape, name]);
 }
 
+/* ------------------------------------------------------ spring motion --- */
+/* Critically-damped smoothing (à la Unity SmoothDamp): organic ease-out with
+   no overshoot. `smoothTime` is roughly how long it takes to arrive. */
+function smoothDamp(
+  cur: THREE.Vector3,
+  goal: THREE.Vector3,
+  vel: THREE.Vector3,
+  smoothTime: number,
+  dt: number
+) {
+  const omega = 2 / smoothTime;
+  const x = omega * dt;
+  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  for (const a of ["x", "y", "z"] as const) {
+    const change = cur[a] - goal[a];
+    const temp = (vel[a] + omega * change) * dt;
+    vel[a] = (vel[a] - omega * temp) * exp;
+    cur[a] = goal[a] + (change + temp) * exp;
+  }
+}
+
 /* --------------------------------------------------- component (mesh) ---- */
 
 export function ComponentMesh({
@@ -179,6 +200,8 @@ export function ComponentMesh({
 }) {
   const group = useRef<THREE.Group>(null);
   const target = useMemo(() => new THREE.Vector3(...position), [position]);
+  const velocity = useRef(new THREE.Vector3());
+  const scaleRef = useRef(0); // start small so beads gently spring in
 
   useFrame((_, delta) => {
     const g = group.current;
@@ -187,17 +210,19 @@ export function ComponentMesh({
       dragUidRef.current === resolved.uid && dragPointRef.current;
     const goal = dragging ? dragPointRef.current! : target;
 
-    if (animate) {
-      // Dragged bead tracks the cursor tightly; the rest ease over to make room.
-      g.position.lerp(goal, Math.min(1, delta * (dragging ? 25 : 9)));
-      const scale = selected ? 1.06 : 1; // stays flat — no lifting/popping
-      g.scale.setScalar(
-        THREE.MathUtils.lerp(g.scale.x, scale, Math.min(1, delta * 12))
-      );
-    } else {
+    if (!animate) {
       g.position.copy(goal);
       g.scale.setScalar(selected ? 1.06 : 1);
+      return;
     }
+
+    const dt = Math.min(delta, 0.045); // stable at low frame rates
+    // Dragged bead follows the cursor tightly; the rest settle more slowly.
+    smoothDamp(g.position, goal, velocity.current, dragging ? 0.045 : 0.12, dt);
+
+    const targetScale = selected ? 1.06 : 1;
+    scaleRef.current += (targetScale - scaleRef.current) * Math.min(1, dt * 14);
+    g.scale.setScalar(scaleRef.current);
   });
 
   const radius = componentRadiusUnits(resolved.diameterMm);
