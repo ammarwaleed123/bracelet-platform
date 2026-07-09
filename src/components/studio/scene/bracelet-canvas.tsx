@@ -53,7 +53,14 @@ function CaptureRegistrar() {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     registerCapture(() => {
-      gl.render(scene, camera); // ensure a fresh frame is in the buffer
+      // Hide the ground shadow so the thumbnail is clean (keep it in the live
+      // scene), then render a fresh frame.
+      const shadow = scene.getObjectByName("soft-shadow");
+      const wasVisible = shadow?.visible ?? true;
+      if (shadow) shadow.visible = false;
+      gl.render(scene, camera);
+      if (shadow) shadow.visible = wasVisible;
+
       const src = gl.domElement;
       const size = 640;
       const off = document.createElement("canvas");
@@ -61,11 +68,11 @@ function CaptureRegistrar() {
       off.height = size;
       const ctx = off.getContext("2d");
       if (!ctx) return null;
-      // Premium framing: the whole bracelet contained and centered on a cream
-      // square with a generous margin (never touching the edges).
+      // Premium framing: the bracelet contained and centered on a cream square
+      // with a small margin.
       ctx.fillStyle = "#f7f4ef";
       ctx.fillRect(0, 0, size, size);
-      const margin = 0.15;
+      const margin = 0.06;
       const box = size * (1 - margin * 2);
       const scale = Math.min(box / src.width, box / src.height);
       const dw = src.width * scale;

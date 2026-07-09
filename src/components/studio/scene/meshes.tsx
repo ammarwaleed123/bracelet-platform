@@ -46,7 +46,11 @@ export function SoftShadow({ radius }: { radius: number }) {
   const texture = useMemo(() => softShadowTexture(), []);
   const size = radius * 2.6 + 0.6;
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.46, 0]}>
+    <mesh
+      name="soft-shadow"
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, -0.46, 0]}
+    >
       <planeGeometry args={[size, size]} />
       <meshBasicMaterial
         map={texture}
