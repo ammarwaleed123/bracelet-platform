@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 import type { ResolvedComponent } from "@/lib/studio/derive";
 import { componentRadiusUnits } from "@/lib/studio/derive";
+import { letterTexture, softShadowTexture, stoneTexture } from "@/lib/studio/textures";
 import type { StudioBase } from "@/lib/studio/types";
 
 const GOLD = "#b08d57";
 
 /* ------------------------------------------------------------ base ring -- */
-/* A thin strung cord/chain lying flat (rotated into the XZ plane). */
 
 export function BaseRing({
   base,
@@ -28,8 +28,8 @@ export function BaseRing({
   const roughness = isCord ? 0.7 : 0.3;
 
   return (
-    <mesh rotation={[Math.PI / 2, 0, 0]} receiveShadow>
-      <torusGeometry args={[radius, tube, 20, 200]} />
+    <mesh rotation={[Math.PI / 2, 0, 0]}>
+      <torusGeometry args={[radius, tube, 20, 220]} />
       <meshStandardMaterial
         color={color}
         metalness={metalness}
@@ -40,19 +40,48 @@ export function BaseRing({
   );
 }
 
+/* -------------------------------------------------- soft ground shadow --- */
+
+export function SoftShadow({ radius }: { radius: number }) {
+  const texture = useMemo(() => softShadowTexture(), []);
+  const size = radius * 2.6 + 0.6;
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.46, 0]}>
+      <planeGeometry args={[size, size]} />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        opacity={0.4}
+        depthWrite={false}
+        color="#000000"
+      />
+    </mesh>
+  );
+}
+
 /* ---------------------------------------------------- charm geometries --- */
+
+function extrudeShape(shape: THREE.Shape) {
+  return new THREE.ExtrudeGeometry(shape, {
+    depth: 0.16,
+    bevelEnabled: true,
+    bevelSize: 0.035,
+    bevelThickness: 0.035,
+    bevelSegments: 3,
+  }).center();
+}
 
 function heartShape(): THREE.Shape {
   const s = new THREE.Shape();
   s.moveTo(0, 0.3);
-  s.bezierCurveTo(0, 0.45, -0.25, 0.6, -0.45, 0.35);
-  s.bezierCurveTo(-0.7, 0.05, -0.35, -0.25, 0, -0.55);
-  s.bezierCurveTo(0.35, -0.25, 0.7, 0.05, 0.45, 0.35);
-  s.bezierCurveTo(0.25, 0.6, 0, 0.45, 0, 0.3);
+  s.bezierCurveTo(0, 0.45, -0.25, 0.62, -0.45, 0.35);
+  s.bezierCurveTo(-0.72, 0.02, -0.32, -0.28, 0, -0.58);
+  s.bezierCurveTo(0.32, -0.28, 0.72, 0.02, 0.45, 0.35);
+  s.bezierCurveTo(0.25, 0.62, 0, 0.45, 0, 0.3);
   return s;
 }
 
-function starShape(points = 5, outer = 0.5, inner = 0.22): THREE.Shape {
+function starShape(points = 5, outer = 0.55, inner = 0.24): THREE.Shape {
   const s = new THREE.Shape();
   for (let i = 0; i < points * 2; i++) {
     const r = i % 2 === 0 ? outer : inner;
@@ -68,67 +97,63 @@ function starShape(points = 5, outer = 0.5, inner = 0.22): THREE.Shape {
 
 function moonShape(): THREE.Shape {
   const s = new THREE.Shape();
-  s.absarc(0, 0, 0.5, 0, Math.PI * 2, false);
+  s.absarc(0, 0, 0.52, 0, Math.PI * 2, false);
   const hole = new THREE.Path();
-  hole.absarc(0.22, 0, 0.42, 0, Math.PI * 2, true);
+  hole.absarc(0.24, 0, 0.44, 0, Math.PI * 2, true);
   s.holes.push(hole);
   return s;
 }
 
-const EXTRUDE = {
-  depth: 0.16,
-  bevelEnabled: true,
-  bevelSize: 0.03,
-  bevelThickness: 0.03,
-  bevelSegments: 2,
-};
-
-function useCharmGeometry(shape: ResolvedComponent["charmShape"]) {
-  return useMemo(() => {
-    switch (shape) {
-      case "heart":
-        return new THREE.ExtrudeGeometry(heartShape(), EXTRUDE).center();
-      case "star":
-        return new THREE.ExtrudeGeometry(starShape(), EXTRUDE).center();
-      case "moon":
-        return new THREE.ExtrudeGeometry(moonShape(), EXTRUDE).center();
-      default:
-        return new THREE.CylinderGeometry(0.42, 0.42, 0.16, 40).rotateX(
-          Math.PI / 2
-        );
-    }
-  }, [shape]);
+function crossShape(): THREE.Shape {
+  const w = 0.16;
+  const l = 0.55;
+  const s = new THREE.Shape();
+  const pts: [number, number][] = [
+    [-w, l], [w, l], [w, w], [l, w], [l, -w], [w, -w],
+    [w, -l], [-w, -l], [-w, -w], [-l, -w], [-l, w], [-w, w],
+  ];
+  pts.forEach(([x, y], i) => (i === 0 ? s.moveTo(x, y) : s.lineTo(x, y)));
+  s.closePath();
+  return s;
 }
 
-/* ------------------------------------------------------- bead material --- */
+function boltShape(): THREE.Shape {
+  const s = new THREE.Shape();
+  const pts: [number, number][] = [
+    [0.12, 0.55], [-0.3, 0.04], [-0.04, 0.04], [-0.14, -0.55],
+    [0.32, 0.06], [0.06, 0.06],
+  ];
+  pts.forEach(([x, y], i) => (i === 0 ? s.moveTo(x, y) : s.lineTo(x, y)));
+  s.closePath();
+  return s;
+}
 
-function beadMaterialProps(resolved: ResolvedComponent) {
-  const mat = resolved.material;
-  const color = mat?.color ?? resolved.colorHex;
-  const isCharm = resolved.kind === "charm";
-
-  if (isCharm) {
-    return {
-      color,
-      metalness: mat?.metalness ?? 1,
-      roughness: mat?.roughness ?? 0.32,
-      transmission: 0,
-    };
-  }
-
-  const transmissionByFinish =
-    resolved.finish === "faceted"
-      ? 0.6
-      : resolved.finish === "polished"
-        ? 0.32
-        : 0; // matte / metallic stay opaque
-
-  return {
-    color,
-    metalness: mat?.metalness ?? 0,
-    roughness: mat?.roughness ?? 0.2,
-    transmission: mat?.transmission ?? transmissionByFinish,
-  };
+/** Pick a geometry for a charm from its shape + name (custom charms vary). */
+function useCharmGeometry(resolved: ResolvedComponent) {
+  const { charmShape, name } = resolved;
+  return useMemo(() => {
+    switch (charmShape) {
+      case "heart":
+        return extrudeShape(heartShape());
+      case "star":
+        return extrudeShape(starShape());
+      case "moon":
+        return extrudeShape(moonShape());
+      case "letter":
+        // A round medallion; the initial is applied via a texture map.
+        return new THREE.CylinderGeometry(0.5, 0.5, 0.16, 48).rotateX(
+          Math.PI / 2
+        );
+      default: {
+        const n = name.toLowerCase();
+        if (n.includes("cross")) return extrudeShape(crossShape());
+        if (n.includes("lightning") || n.includes("bolt"))
+          return extrudeShape(boltShape());
+        // A faceted teardrop-ish gem for the remaining custom charms.
+        return new THREE.OctahedronGeometry(0.55, 0).scale(0.7, 1, 0.7);
+      }
+    }
+  }, [charmShape, name]);
 }
 
 /* --------------------------------------------------- component (mesh) ---- */
@@ -138,6 +163,8 @@ export function ComponentMesh({
   position,
   selected,
   animate,
+  dragUidRef,
+  dragPointRef,
   onSelect,
   onDragStart,
 }: {
@@ -145,6 +172,8 @@ export function ComponentMesh({
   position: [number, number, number];
   selected: boolean;
   animate: boolean;
+  dragUidRef: RefObject<string | null>;
+  dragPointRef: RefObject<THREE.Vector3 | null>;
   onSelect: (uid: string) => void;
   onDragStart: (uid: string) => void;
 }) {
@@ -154,22 +183,46 @@ export function ComponentMesh({
   useFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
+    const dragging =
+      dragUidRef.current === resolved.uid && dragPointRef.current;
+    const goal = dragging ? dragPointRef.current! : target;
+
     if (animate) {
-      g.position.lerp(target, Math.min(1, delta * 12));
-      const scale = selected ? 1.1 : 1;
+      g.position.lerp(goal, Math.min(1, delta * (dragging ? 20 : 8)));
+      const scale = dragging ? 1.18 : selected ? 1.08 : 1;
       g.scale.setScalar(
-        THREE.MathUtils.lerp(g.scale.x, scale, Math.min(1, delta * 14))
+        THREE.MathUtils.lerp(g.scale.x, scale, Math.min(1, delta * 12))
       );
     } else {
-      g.position.copy(target);
-      g.scale.setScalar(selected ? 1.1 : 1);
+      g.position.copy(goal);
+      g.scale.setScalar(selected ? 1.08 : 1);
     }
   });
 
   const radius = componentRadiusUnits(resolved.diameterMm);
   const isCharm = resolved.kind === "charm";
-  const mat = beadMaterialProps(resolved);
-  const charmGeometry = useCharmGeometry(resolved.charmShape);
+  const charmGeometry = useCharmGeometry(resolved);
+
+  const stoneMap = useMemo(
+    () => (isCharm ? null : stoneTexture(resolved.material?.color ?? resolved.colorHex)),
+    [isCharm, resolved.material?.color, resolved.colorHex]
+  );
+  const letterMap = useMemo(
+    () =>
+      resolved.charmShape === "letter"
+        ? letterTexture(resolved.letterValue ?? "A", resolved.colorHex)
+        : null,
+    [resolved.charmShape, resolved.letterValue, resolved.colorHex]
+  );
+
+  const transmission = isCharm
+    ? 0
+    : resolved.material?.transmission ??
+      (resolved.finish === "faceted"
+        ? 0.55
+        : resolved.finish === "polished"
+          ? 0.3
+          : 0);
 
   return (
     <group
@@ -192,30 +245,31 @@ export function ComponentMesh({
       }}
     >
       {isCharm ? (
-        <mesh geometry={charmGeometry} scale={radius / 0.5} castShadow>
+        <mesh geometry={charmGeometry} scale={radius / 0.5}>
           <meshStandardMaterial
-            color={mat.color}
-            metalness={mat.metalness}
-            roughness={mat.roughness}
+            color={resolved.colorHex}
+            map={letterMap ?? undefined}
+            metalness={resolved.material?.metalness ?? 1}
+            roughness={resolved.material?.roughness ?? 0.32}
             envMapIntensity={1.2}
           />
         </mesh>
       ) : (
-        <mesh castShadow>
+        <mesh>
           <sphereGeometry args={[radius, 48, 48]} />
           <meshPhysicalMaterial
-            color={mat.color}
-            metalness={mat.metalness}
-            roughness={mat.roughness}
-            transmission={mat.transmission}
+            map={stoneMap ?? undefined}
+            color="#ffffff"
+            metalness={resolved.material?.metalness ?? 0}
+            roughness={resolved.material?.roughness ?? 0.25}
+            transmission={transmission}
             thickness={radius * 3}
             ior={1.5}
             clearcoat={0.3}
             clearcoatRoughness={0.4}
-            attenuationColor={mat.color}
-            attenuationDistance={1.2}
+            attenuationColor={resolved.material?.color ?? resolved.colorHex}
+            attenuationDistance={1.4}
             envMapIntensity={1.2}
-            specularIntensity={1}
           />
         </mesh>
       )}

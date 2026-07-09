@@ -2,12 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import {
-  ContactShadows,
-  Environment,
-  Lightformer,
-  OrbitControls,
-} from "@react-three/drei";
+import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
@@ -85,18 +80,8 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
         />
       </Environment>
 
+      {/* Bracelet includes its own soft ground shadow, sized to the ring. */}
       <Bracelet catalog={catalog} controlsRef={controlsRef} />
-
-      {/* Soft photographic shadow on the surface below the bracelet. */}
-      <ContactShadows
-        position={[0, -0.6, 0]}
-        scale={14}
-        blur={2.6}
-        opacity={0.32}
-        far={4}
-        resolution={512}
-        color="#2a2118"
-      />
 
       <OrbitControls
         ref={controlsRef}

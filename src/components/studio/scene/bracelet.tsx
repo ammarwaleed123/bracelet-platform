@@ -13,7 +13,7 @@ import {
   resolveComponents,
 } from "@/lib/studio/derive";
 import type { StudioCatalog } from "@/lib/studio/types";
-import { BaseRing, ComponentMesh } from "./meshes";
+import { BaseRing, ComponentMesh, SoftShadow } from "./meshes";
 
 // The bracelet lies flat in the XZ plane (y = 0).
 const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -52,13 +52,15 @@ export function Bracelet({
     [resolved, sizeCm]
   );
 
-  const dragUid = useRef<string | null>(null);
+  // Drag state in refs so the render-loop and window listeners share it.
+  const dragUidRef = useRef<string | null>(null);
+  const dragPointRef = useRef<THREE.Vector3 | null>(null);
   const dragBefore = useRef(useStudioStore.getState().getDesignState());
 
   useEffect(() => {
     const canvas = gl.domElement;
 
-    const slotFromPointer = (clientX: number, clientY: number): number | null => {
+    const pointerToGround = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
       const ndc = new THREE.Vector2(
         ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -66,36 +68,37 @@ export function Bracelet({
       );
       raycaster.setFromCamera(ndc, camera);
       const hit = new THREE.Vector3();
-      if (!raycaster.ray.intersectPlane(GROUND_PLANE, hit)) return null;
-
-      const diameters = useStudioStore
-        .getState()
-        .components.map((c) => {
-          const r =
-            c.kind === "bead"
-              ? index.beads.get(c.refId)
-              : index.charms.get(c.refId);
-          return r?.diameterMm ?? 8;
-        });
-      if (diameters.length === 0) return null;
-
-      const { items } = computeLayout(
-        diameters,
-        useStudioStore.getState().sizeCm
-      );
-      const angle = Math.atan2(hit.z, hit.x);
-      return nearestSlotIndex(items, angle);
+      return raycaster.ray.intersectPlane(GROUND_PLANE, hit) ? hit : null;
     };
 
     const onMove = (e: PointerEvent) => {
-      if (!dragUid.current) return;
-      const target = slotFromPointer(e.clientX, e.clientY);
-      if (target !== null) useStudioStore.getState().moveLive(dragUid.current, target);
+      if (!dragUidRef.current) return;
+      const hit = pointerToGround(e.clientX, e.clientY);
+      if (!hit) return;
+
+      // The dragged bead visually follows the finger (lifted slightly).
+      dragPointRef.current = new THREE.Vector3(hit.x, 0.3, hit.z);
+
+      const diameters = useStudioStore.getState().components.map((c) => {
+        const r =
+          c.kind === "bead"
+            ? index.beads.get(c.refId)
+            : index.charms.get(c.refId);
+        return r?.diameterMm ?? 8;
+      });
+      if (diameters.length === 0) return;
+
+      const { items } = computeLayout(diameters, useStudioStore.getState().sizeCm);
+      const angle = Math.atan2(hit.z, hit.x);
+      useStudioStore
+        .getState()
+        .moveLive(dragUidRef.current, nearestSlotIndex(items, angle));
     };
 
     const onUp = () => {
-      if (!dragUid.current) return;
-      dragUid.current = null;
+      if (!dragUidRef.current) return;
+      dragUidRef.current = null;
+      dragPointRef.current = null;
       useStudioStore.getState().commitInteraction(dragBefore.current);
       if (controlsRef.current) controlsRef.current.enabled = true;
       document.body.style.cursor = "";
@@ -110,7 +113,8 @@ export function Bracelet({
   }, [camera, gl, raycaster, controlsRef, index]);
 
   const onDragStart = (uid: string) => {
-    dragUid.current = uid;
+    dragUidRef.current = uid;
+    dragPointRef.current = null;
     dragBefore.current = useStudioStore.getState().getDesignState();
     useStudioStore.getState().select(uid);
     if (controlsRef.current) controlsRef.current.enabled = false;
@@ -119,6 +123,7 @@ export function Bracelet({
 
   return (
     <group>
+      <SoftShadow radius={layout.radiusUnits} />
       <BaseRing base={base} radius={layout.radiusUnits} />
       {resolved.map((c, i) => (
         <ComponentMesh
@@ -127,6 +132,8 @@ export function Bracelet({
           position={layout.items[i]?.position ?? [0, 0, 0]}
           selected={c.uid === selectedUid}
           animate={animate}
+          dragUidRef={dragUidRef}
+          dragPointRef={dragPointRef}
           onSelect={(uid) => useStudioStore.getState().select(uid)}
           onDragStart={onDragStart}
         />
