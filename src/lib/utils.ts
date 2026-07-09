@@ -29,3 +29,22 @@ export function formatPrice(piastres: number): string {
   const hasFraction = piastres % 100 !== 0;
   return EGP_FORMATTER.format(hasFraction ? pounds : Math.round(pounds));
 }
+
+/** URL/slug-safe: lowercase, non-alphanumerics collapsed to single hyphens. */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Convert an EGP amount (may be fractional) to integer piastres. */
+export function egpToPiastres(egp: number): number {
+  return Math.round(egp * 100);
+}
+
+/** Convert integer piastres to an EGP number for editable form inputs. */
+export function piastresToEgp(piastres: number): number {
+  return piastres / 100;
+}

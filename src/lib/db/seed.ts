@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import postgres from "postgres";
 
 import * as schema from "./schema";
-import type { Material3dParams, Model3dParams } from "./schema";
+import { baseParams, beadParams } from "@/lib/catalog/params";
 import {
   seedBases,
   seedBeads,
@@ -13,8 +13,6 @@ import {
   seedCharms,
   seedCollections,
   seedDesigns,
-  type BaseType,
-  type BeadFinish,
 } from "./seed-data";
 
 // Standalone script (`npm run db:seed`), outside Next — load env + own client.
@@ -29,34 +27,6 @@ function slugify(input: string): string {
 }
 
 const egpToPiastres = (egp: number) => Math.round(egp * 100);
-
-function baseParams(type: BaseType, colorHex: string): Model3dParams {
-  switch (type) {
-    case "chain":
-      return { color: colorHex, thickness: 0.14, metalness: 0.9, roughness: 0.25 };
-    case "cord":
-      return { color: colorHex, thickness: 0.22, metalness: 0, roughness: 0.85 };
-    case "bangle":
-      return { color: colorHex, thickness: 0.3, metalness: 0.9, roughness: 0.2 };
-  }
-}
-
-function beadParams(
-  finish: BeadFinish,
-  colorHex: string,
-  transmission?: number
-): Material3dParams {
-  switch (finish) {
-    case "polished":
-      return { color: colorHex, roughness: 0.25, metalness: 0 };
-    case "matte":
-      return { color: colorHex, roughness: 0.85, metalness: 0 };
-    case "faceted":
-      return { color: colorHex, roughness: 0.1, metalness: 0, transmission: transmission ?? 0.4 };
-    case "metallic":
-      return { color: colorHex, roughness: 0.3, metalness: 1 };
-  }
-}
 
 async function seed() {
   const databaseUrl = process.env.DATABASE_URL;
