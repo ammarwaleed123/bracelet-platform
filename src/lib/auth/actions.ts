@@ -7,7 +7,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
 /** Shape returned to the client forms via useActionState. */
-export type AuthFormState = { error?: string } | undefined;
+export type AuthFormState = { error?: string; message?: string } | undefined;
 
 const credentialsSchema = z.object({
   email: z.email("Enter a valid email address."),
@@ -38,6 +38,14 @@ export async function signInWithPassword(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
+    // Distinguish an unconfirmed email from bad credentials so users aren't
+    // told the wrong thing after signing up.
+    if (error.code === "email_not_confirmed") {
+      return {
+        error:
+          "Please confirm your email first — check your inbox for the confirmation link.",
+      };
+    }
     return { error: "Incorrect email or password." };
   }
 
@@ -58,7 +66,7 @@ export async function signUpWithPassword(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
@@ -68,6 +76,15 @@ export async function signUpWithPassword(
   });
   if (error) {
     return { error: error.message };
+  }
+
+  // If the project requires email confirmation, no session is returned yet.
+  // Tell the user to confirm instead of redirecting to a gated page.
+  if (!data.session) {
+    return {
+      message:
+        "Account created. Check your email for a confirmation link, then sign in.",
+    };
   }
 
   redirect("/account");
