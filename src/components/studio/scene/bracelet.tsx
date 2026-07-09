@@ -54,7 +54,7 @@ export function Bracelet({
 
   // Drag state in refs so the render-loop and window listeners share it.
   const dragUidRef = useRef<string | null>(null);
-  const dragPointRef = useRef<THREE.Vector3 | null>(null);
+  const dragAngleRef = useRef<number | null>(null);
   const dragBefore = useRef(useStudioStore.getState().getDesignState());
 
   useEffect(() => {
@@ -85,27 +85,21 @@ export function Bracelet({
       });
       if (diameters.length === 0) return;
 
-      const layout = computeLayout(diameters, useStudioStore.getState().sizeCm);
+      const { items } = computeLayout(diameters, useStudioStore.getState().sizeCm);
       const angle = Math.atan2(hit.z, hit.x);
 
-      // The dragged bead stays flat on the string, gliding to the cursor's
-      // angle around the ring (never lifting off).
-      const r = layout.radiusUnits;
-      dragPointRef.current = new THREE.Vector3(
-        Math.cos(angle) * r,
-        0,
-        Math.sin(angle) * r
-      );
+      // The dragged bead glides flat along the string to the cursor's angle.
+      dragAngleRef.current = angle;
 
       useStudioStore
         .getState()
-        .moveLive(dragUidRef.current, nearestSlotIndex(layout.items, angle));
+        .moveLive(dragUidRef.current, nearestSlotIndex(items, angle));
     };
 
     const onUp = () => {
       if (!dragUidRef.current) return;
       dragUidRef.current = null;
-      dragPointRef.current = null;
+      dragAngleRef.current = null;
       useStudioStore.getState().commitInteraction(dragBefore.current);
       if (controlsRef.current) controlsRef.current.enabled = true;
       document.body.style.cursor = "";
@@ -121,7 +115,7 @@ export function Bracelet({
 
   const onDragStart = (uid: string) => {
     dragUidRef.current = uid;
-    dragPointRef.current = null;
+    dragAngleRef.current = null;
     dragBefore.current = useStudioStore.getState().getDesignState();
     useStudioStore.getState().select(uid);
     if (controlsRef.current) controlsRef.current.enabled = false;
@@ -136,11 +130,12 @@ export function Bracelet({
         <ComponentMesh
           key={c.uid}
           resolved={c}
-          position={layout.items[i]?.position ?? [0, 0, 0]}
+          targetAngle={layout.items[i]?.angle ?? 0}
+          radius={layout.radiusUnits}
           selected={c.uid === selectedUid}
           animate={animate}
           dragUidRef={dragUidRef}
-          dragPointRef={dragPointRef}
+          dragAngleRef={dragAngleRef}
           onSelect={(uid) => useStudioStore.getState().select(uid)}
           onDragStart={onDragStart}
         />

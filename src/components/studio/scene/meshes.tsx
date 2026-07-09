@@ -158,74 +158,100 @@ function useCharmGeometry(resolved: ResolvedComponent) {
 
 /* ------------------------------------------------------ spring motion --- */
 /* Critically-damped smoothing (à la Unity SmoothDamp): organic ease-out with
-   no overshoot. `smoothTime` is roughly how long it takes to arrive. */
-function smoothDamp(
-  cur: THREE.Vector3,
-  goal: THREE.Vector3,
-  vel: THREE.Vector3,
+   no overshoot. `smoothTime` is roughly how long it takes to arrive. Operates
+   on a single scalar; we drive the bead's ANGLE around the ring (and radius)
+   so beads slide ALONG the string arc instead of cutting across the middle. */
+function smoothDampScalar(
+  cur: number,
+  goal: number,
+  vel: { current: number },
   smoothTime: number,
   dt: number
-) {
+): number {
   const omega = 2 / smoothTime;
   const x = omega * dt;
   const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
-  for (const a of ["x", "y", "z"] as const) {
-    const change = cur[a] - goal[a];
-    const temp = (vel[a] + omega * change) * dt;
-    vel[a] = (vel[a] - omega * temp) * exp;
-    cur[a] = goal[a] + (change + temp) * exp;
-  }
+  const change = cur - goal;
+  const temp = (vel.current + omega * change) * dt;
+  vel.current = (vel.current - omega * temp) * exp;
+  return goal + (change + temp) * exp;
 }
 
 /* --------------------------------------------------- component (mesh) ---- */
 
 export function ComponentMesh({
   resolved,
-  position,
+  targetAngle,
+  radius,
   selected,
   animate,
   dragUidRef,
-  dragPointRef,
+  dragAngleRef,
   onSelect,
   onDragStart,
 }: {
   resolved: ResolvedComponent;
-  position: [number, number, number];
+  targetAngle: number;
+  radius: number;
   selected: boolean;
   animate: boolean;
   dragUidRef: RefObject<string | null>;
-  dragPointRef: RefObject<THREE.Vector3 | null>;
+  dragAngleRef: RefObject<number | null>;
   onSelect: (uid: string) => void;
   onDragStart: (uid: string) => void;
 }) {
   const group = useRef<THREE.Group>(null);
-  const target = useMemo(() => new THREE.Vector3(...position), [position]);
-  const velocity = useRef(new THREE.Vector3());
+  const angleRef = useRef(targetAngle);
+  const radiusRef = useRef(radius);
+  const angleVel = useRef(0);
+  const radiusVel = useRef(0);
   const scaleRef = useRef(0); // start small so beads gently spring in
 
   useFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
     const dragging =
-      dragUidRef.current === resolved.uid && dragPointRef.current;
-    const goal = dragging ? dragPointRef.current! : target;
+      dragUidRef.current === resolved.uid && dragAngleRef.current != null;
+
+    // Unwrap the goal angle to the nearest equivalent so beads always take the
+    // short way around the ring (never spin the long way for a small swap).
+    let goalAngle = dragging ? dragAngleRef.current! : targetAngle;
+    while (goalAngle - angleRef.current > Math.PI) goalAngle -= Math.PI * 2;
+    while (goalAngle - angleRef.current < -Math.PI) goalAngle += Math.PI * 2;
 
     if (!animate) {
-      g.position.copy(goal);
+      angleRef.current = goalAngle;
+      radiusRef.current = radius;
       g.scale.setScalar(selected ? 1.06 : 1);
-      return;
+    } else {
+      const dt = Math.min(delta, 0.045);
+      angleRef.current = smoothDampScalar(
+        angleRef.current,
+        goalAngle,
+        angleVel,
+        dragging ? 0.05 : 0.14,
+        dt
+      );
+      radiusRef.current = smoothDampScalar(
+        radiusRef.current,
+        radius,
+        radiusVel,
+        0.16,
+        dt
+      );
+      const targetScale = selected ? 1.06 : 1;
+      scaleRef.current += (targetScale - scaleRef.current) * Math.min(1, dt * 14);
+      g.scale.setScalar(scaleRef.current);
     }
 
-    const dt = Math.min(delta, 0.045); // stable at low frame rates
-    // Dragged bead follows the cursor tightly; the rest settle more slowly.
-    smoothDamp(g.position, goal, velocity.current, dragging ? 0.045 : 0.12, dt);
-
-    const targetScale = selected ? 1.06 : 1;
-    scaleRef.current += (targetScale - scaleRef.current) * Math.min(1, dt * 14);
-    g.scale.setScalar(scaleRef.current);
+    g.position.set(
+      Math.cos(angleRef.current) * radiusRef.current,
+      0,
+      Math.sin(angleRef.current) * radiusRef.current
+    );
   });
 
-  const radius = componentRadiusUnits(resolved.diameterMm);
+  const beadRadius = componentRadiusUnits(resolved.diameterMm);
   const isCharm = resolved.kind === "charm";
   const charmGeometry = useCharmGeometry(resolved);
 
@@ -253,7 +279,11 @@ export function ComponentMesh({
   return (
     <group
       ref={group}
-      position={position}
+      position={[
+        Math.cos(targetAngle) * radius,
+        0,
+        Math.sin(targetAngle) * radius,
+      ]}
       onPointerDown={(e) => {
         e.stopPropagation();
         onDragStart(resolved.uid);
@@ -271,7 +301,7 @@ export function ComponentMesh({
       }}
     >
       {isCharm ? (
-        <mesh geometry={charmGeometry} scale={radius / 0.5}>
+        <mesh geometry={charmGeometry} scale={beadRadius / 0.5}>
           <meshStandardMaterial
             color={resolved.colorHex}
             map={letterMap ?? undefined}
@@ -282,14 +312,14 @@ export function ComponentMesh({
         </mesh>
       ) : (
         <mesh>
-          <sphereGeometry args={[radius, 48, 48]} />
+          <sphereGeometry args={[beadRadius, 48, 48]} />
           <meshPhysicalMaterial
             map={stoneMap ?? undefined}
             color="#ffffff"
             metalness={resolved.material?.metalness ?? 0}
             roughness={resolved.material?.roughness ?? 0.25}
             transmission={transmission}
-            thickness={radius * 3}
+            thickness={beadRadius * 3}
             ior={1.5}
             clearcoat={0.3}
             clearcoatRoughness={0.4}
@@ -302,7 +332,7 @@ export function ComponentMesh({
 
       {selected && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[radius * 1.3, 0.02, 12, 64]} />
+          <torusGeometry args={[beadRadius * 1.3, 0.02, 12, 64]} />
           <meshStandardMaterial
             color={GOLD}
             metalness={0.6}
