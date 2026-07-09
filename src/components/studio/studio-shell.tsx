@@ -97,11 +97,9 @@ export function StudioShell({ catalog }: { catalog: StudioCatalog }) {
           </div>
         </div>
 
-        {/* Live price overlay */}
-        <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-          <div className="pointer-events-auto">
-            <PriceChip catalog={catalog} />
-          </div>
+        {/* Live price overlay — top-right so it never overlaps the toolbar */}
+        <div className="absolute right-3 top-3">
+          <PriceChip catalog={catalog} />
         </div>
 
         {/* First-run hint */}
