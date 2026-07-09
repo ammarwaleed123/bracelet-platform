@@ -30,17 +30,15 @@ export function SaveDesign({ catalog }: { catalog: StudioCatalog }) {
       >
         Save design
       </Button>
-      {open && <SaveDialog catalog={catalog} index={index} onClose={() => setOpen(false)} />}
+      {open && <SaveDialog index={index} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
 function SaveDialog({
-  catalog,
   index,
   onClose,
 }: {
-  catalog: StudioCatalog;
   index: ReturnType<typeof indexCatalog>;
   onClose: () => void;
 }) {

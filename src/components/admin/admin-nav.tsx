@@ -11,6 +11,7 @@ const links = [
   { label: "Beads", href: "/admin/beads" },
   { label: "Charms", href: "/admin/charms" },
   { label: "Categories", href: "/admin/categories" },
+  { label: "Gallery", href: "/admin/gallery" },
 ];
 
 export function AdminNav() {

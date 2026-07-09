@@ -81,6 +81,13 @@ export const footer = {
   rights: (year: number) => `© ${year} ${site.name}. All rights reserved.`,
 } as const;
 
+export const gallery = {
+  eyebrow: "Community & collections",
+  title: "The gallery",
+  subhead:
+    "Designs from our studio and our community. Love one? Make it yours, or customize it into something new.",
+} as const;
+
 /** Home page placeholder copy — the full hero lands in milestone 1.6. */
 export const home = {
   eyebrow: "Made to order · Egypt",

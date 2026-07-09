@@ -12,27 +12,13 @@ import {
   profiles,
 } from "@/lib/db/schema";
 import type { DesignComponent } from "@/lib/db/schema";
+import type {
+  GalleryCard,
+  GalleryFilters,
+  GalleryItem,
+} from "@/lib/designs/types";
 
-export type GallerySort = "newest" | "most_liked" | "price_asc" | "price_desc";
-
-export type GalleryCard = {
-  id: string;
-  publicId: string;
-  name: string;
-  thumbnailUrl: string | null;
-  priceInPiastres: number;
-  likesCount: number;
-  creatorName: string | null;
-};
-
-export type GalleryFilters = {
-  sort?: GallerySort;
-  search?: string;
-  minPiastres?: number;
-  maxPiastres?: number;
-  offset?: number;
-  limit?: number;
-};
+import { getCurrentUser } from "@/lib/auth/guards";
 
 /** Public gallery: approved public designs + brand designs, paginated. */
 export async function getGalleryDesigns(
@@ -78,6 +64,24 @@ export async function getGalleryDesigns(
     .offset(offset);
 
   return { items: rows.slice(0, limit), hasMore: rows.length > limit };
+}
+
+/** Gallery page + the current viewer's liked state for each card. */
+export async function getGalleryPage(
+  filters: GalleryFilters = {}
+): Promise<{ items: GalleryItem[]; hasMore: boolean }> {
+  const user = await getCurrentUser();
+  const { items, hasMore } = await getGalleryDesigns(filters);
+  const liked = user
+    ? await getLikedDesignIds(
+        items.map((i) => i.id),
+        user.id
+      )
+    : new Set<string>();
+  return {
+    items: items.map((i) => ({ ...i, liked: liked.has(i.id) })),
+    hasMore,
+  };
 }
 
 export type ResolvedDesignPart = {
