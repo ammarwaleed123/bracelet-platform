@@ -78,6 +78,15 @@ export function EmailAuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </p>
       )}
 
+      {state?.message && (
+        <p
+          role="status"
+          className="rounded-lg bg-gold-tint px-3 py-2 text-sm text-gold-strong"
+        >
+          {state.message}
+        </p>
+      )}
+
       <SubmitButton label={mode === "sign-in" ? "Sign in" : "Create account"} />
     </form>
   );
