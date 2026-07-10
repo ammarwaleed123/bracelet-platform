@@ -88,7 +88,7 @@ export const gallery = {
     "Designs from our studio and our community. Love one? Make it yours, or customize it into something new.",
 } as const;
 
-/** Home page placeholder copy — the full hero lands in milestone 1.6. */
+/** Home page copy. */
 export const home = {
   eyebrow: "Made to order · Egypt",
   headline: "Wear your story.",
@@ -96,6 +96,61 @@ export const home = {
     "Design a bracelet that is entirely yours in our live 3D studio, then have it handmade and delivered to your door.",
   primaryCta: { label: "Enter the studio", href: "/studio" } as NavLink,
   secondaryCta: { label: "Browse the gallery", href: "/gallery" } as NavLink,
-  buildingNote:
-    "We're putting the finishing touches on the experience. The full home page arrives soon.",
+
+  valueProps: [
+    {
+      title: "Designed by you",
+      body: "Arrange every bead and charm by hand in a live 3D studio. No two bracelets are alike.",
+    },
+    {
+      title: "Handmade to order",
+      body: "Each piece is crafted bead by bead in Egypt after you order — nothing sits on a shelf.",
+    },
+    {
+      title: "Cash on delivery",
+      body: "Pay when it arrives, anywhere in Egypt. Card & wallet payments coming soon.",
+    },
+  ],
+
+  steps: {
+    eyebrow: "How it works",
+    title: "From your imagination to your wrist",
+    items: [
+      {
+        n: "01",
+        title: "Design in 3D",
+        body: "Pick a base, then add beads and charms and arrange them however you like in the studio.",
+      },
+      {
+        n: "02",
+        title: "We handcraft it",
+        body: "Your design is made to order, by hand, by our artisans — exactly as you built it.",
+      },
+      {
+        n: "03",
+        title: "Delivered to you",
+        body: "It arrives at your door ready to wear or gift. Pay cash on delivery.",
+      },
+    ],
+  },
+
+  featured: {
+    eyebrow: "From the gallery",
+    title: "Loved by our community",
+    subhead: "Real designs from our studio and our makers. Buy one, or make it your own.",
+    cta: { label: "Explore the gallery", href: "/gallery" } as NavLink,
+  },
+
+  meaning: {
+    eyebrow: "The lifestyle layer",
+    title: "Every stone carries a meaning",
+    body: "Choose stones not only for their colour, but for what they hold — clarity, protection, love. Your bracelet becomes a story you can wear every day.",
+    cta: { label: "Start your story", href: "/studio" } as NavLink,
+  },
+
+  closing: {
+    title: "Your bracelet is waiting to be made.",
+    body: "Open the studio and design something that is entirely, unmistakably yours.",
+    cta: { label: "Design yours", href: "/studio" } as NavLink,
+  },
 } as const;
