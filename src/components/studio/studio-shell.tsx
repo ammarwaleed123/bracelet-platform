@@ -116,9 +116,11 @@ export function StudioShell({
   }, []);
 
   return (
-    <div className="flex flex-col lg:h-[calc(100dvh-4rem)] lg:flex-row">
+    // Fixed-height split on every screen so the bracelet stays pinned while the
+    // palette scrolls under it — on mobile you no longer scroll the stage away.
+    <div className="flex h-[calc(100dvh-4rem)] flex-col lg:flex-row">
       {/* Stage */}
-      <div className="relative h-[55dvh] w-full shrink-0 lg:h-full lg:min-w-0 lg:flex-1">
+      <div className="relative h-[48dvh] w-full shrink-0 lg:h-full lg:min-w-0 lg:flex-1">
         {ready ? <BraceletCanvas catalog={catalog} /> : <StudioLoading />}
 
         {/* Toolbar overlay */}
@@ -156,8 +158,9 @@ export function StudioShell({
         <StageOverlays catalog={catalog} />
       </div>
 
-      {/* Control panel */}
-      <aside className="flex w-full shrink-0 flex-col border-t border-border bg-background lg:h-full lg:w-[380px] lg:border-l lg:border-t-0">
+      {/* Control panel — takes the remaining height and scrolls the palette
+          internally; fixed-width rail on desktop. */}
+      <aside className="flex min-h-0 w-full flex-1 flex-col border-t border-border bg-background lg:h-full lg:w-[380px] lg:flex-none lg:border-l lg:border-t-0">
         <div className="shrink-0 space-y-5 p-5">
           <div className="flex items-center justify-between gap-3">
             <p className="font-serif text-lg text-ink">Design</p>
@@ -169,7 +172,7 @@ export function StudioShell({
           <BaseSelector catalog={catalog} />
           <SizeControl catalog={catalog} />
         </div>
-        <div className="min-h-0 flex-1 border-t border-border p-5 lg:overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden border-t border-border p-5">
           <Palette catalog={catalog} />
         </div>
       </aside>
