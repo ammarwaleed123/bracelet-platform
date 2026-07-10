@@ -80,6 +80,8 @@ function AddToCartDialog({
         sizeCm,
         components: components.map((c) => ({ kind: c.kind, refId: c.refId })),
         thumbnailDataUrl: captureThumbnail() ?? undefined,
+        // Don't file it under "Your designs" — this only backs the cart line.
+        saveToAccount: false,
       });
       if (!result.ok) {
         setError(result.error);

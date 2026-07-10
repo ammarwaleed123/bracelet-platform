@@ -24,6 +24,12 @@ const saveSchema = z.object({
   sizeCm: z.number().min(14).max(22),
   components: z.array(componentSchema).max(80),
   thumbnailDataUrl: z.string().startsWith("data:image/").optional(),
+  /**
+   * Whether this should appear in the customer's "Your designs" list. Add-to-
+   * cart passes false, persisting a hidden `draft` purely to back the cart line;
+   * the explicit Save passes true (default), promoting it to a saved design.
+   */
+  saveToAccount: z.boolean().optional(),
 });
 
 export type SaveDesignInput = z.input<typeof saveSchema>;
@@ -41,6 +47,7 @@ export async function saveDesign(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid design." };
   }
   const d = parsed.data;
+  const promote = d.saveToAccount !== false; // Save = true; add-to-cart = false
 
   // Price is always recomputed server-side from the catalog.
   const price = await computeDesignPriceInPiastres(d.baseId, d.components);
@@ -60,6 +67,7 @@ export async function saveDesign(
         id: designs.id,
         ownerId: designs.ownerId,
         publicId: designs.publicId,
+        status: designs.status,
       })
       .from(designs)
       .where(eq(designs.id, d.designId))
@@ -78,10 +86,16 @@ export async function saveDesign(
     designId = existing.id;
     publicId = existing.publicId;
 
+    // Save promotes a draft to a visible saved design (but never downgrades a
+    // published one). Add-to-cart leaves the status untouched.
+    const promotedStatus =
+      promote && existing.status === "draft" ? "saved" : existing.status;
+
     await db
       .update(designs)
       .set({
         name: d.name,
+        status: promotedStatus,
         baseId: d.baseId,
         sizeCm: String(d.sizeCm),
         componentsJson,
@@ -97,7 +111,8 @@ export async function saveDesign(
         publicId,
         ownerId: user.id,
         name: d.name,
-        status: "saved",
+        // Add-to-cart persists a hidden draft; Save creates a visible design.
+        status: promote ? "saved" : "draft",
         baseId: d.baseId,
         sizeCm: String(d.sizeCm),
         componentsJson,
