@@ -70,8 +70,15 @@ function Scene({
     const p = reduced ? 1 : clamp01(progressRef.current ?? 0);
     const t = state.clock.elapsedTime;
 
+    // Assembly happens over the first ~40% of the journey.
+    const assembleP = clamp01(p / 0.4);
+
+    // The ring turns continuously, tilts more face-on and grows a touch as the
+    // visitor scrolls deeper into the story.
     if (!reduced) g.rotation.y += dt * 0.25;
-    g.rotation.x = -0.5; // tilt the ring toward the camera
+    g.rotation.x = -0.55 + smoothstep(0.35, 1, p) * 0.4;
+    const scale = 0.9 + smoothstep(0, 1, p) * 0.28;
+    g.scale.setScalar(scale);
 
     for (let i = 0; i < meshes.current.length; i++) {
       const m = meshes.current[i];
@@ -79,7 +86,7 @@ function Scene({
       const from = scatter[i];
       if (!m || !target || !from) continue;
       // Staggered assembly — beads arrive one after another as you scroll.
-      const local = clamp01((p - (i / count) * 0.35) / 0.65);
+      const local = clamp01((assembleP - (i / count) * 0.35) / 0.65);
       const e = easeOutCubic(local);
       m.position.lerpVectors(from, target, e);
       if (!reduced && e < 0.999) {
@@ -90,8 +97,8 @@ function Scene({
 
     if (ringRef.current) {
       const rm = ringRef.current.material as THREE.MeshStandardMaterial;
-      rm.opacity = smoothstep(0.25, 0.9, p);
-      ringRef.current.scale.setScalar(0.6 + 0.4 * smoothstep(0.2, 1, p));
+      rm.opacity = smoothstep(0.1, 0.5, assembleP);
+      ringRef.current.scale.setScalar(0.6 + 0.4 * smoothstep(0.1, 0.6, assembleP));
     }
   });
 

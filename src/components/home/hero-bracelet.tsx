@@ -9,14 +9,16 @@ import type { HeroBead } from "@/lib/catalog/hero-beads";
 const HeroCanvas = dynamic(() => import("./hero-bracelet-canvas"), {
   ssr: false,
   loading: () => (
-    <div className="absolute inset-0 rounded-3xl bg-gradient-to-b from-linen to-sand" />
+    <div className="absolute inset-0 bg-gradient-to-b from-linen to-sand" />
   ),
 });
 
 /**
- * Home-page hero: real catalog beads fall in and assemble into a rotating
- * bracelet as the visitor scrolls the first screen. Purely decorative
- * (pointer-events off) and static when reduced motion is preferred.
+ * The persistent 3D bracelet for the home-page scroll journey. Real catalog
+ * beads fall in and assemble into a bracelet, which then tilts, grows and turns
+ * as the visitor scrolls through the narrative beats. Fills its (pinned)
+ * container, is purely decorative (pointer-events off), and stays static under
+ * prefers-reduced-motion.
  */
 export function HeroBracelet({ beads }: { beads: HeroBead[] }) {
   const progressRef = useRef(0);
@@ -28,11 +30,11 @@ export function HeroBracelet({ beads }: { beads: HeroBead[] }) {
     const onMq = () => setReduced(mq.matches);
     mq.addEventListener?.("change", onMq);
 
-    // Assemble over the first ~60% of a viewport of scrolling.
+    // Progress runs 0 → 1 over roughly the journey's pinned scroll range.
     const onScroll = () => {
       progressRef.current = Math.max(
         0,
-        Math.min(1, window.scrollY / (window.innerHeight * 0.6))
+        Math.min(1, window.scrollY / (window.innerHeight * 2.2))
       );
     };
     onScroll();
@@ -45,13 +47,8 @@ export function HeroBracelet({ beads }: { beads: HeroBead[] }) {
   }, []);
 
   return (
-    <div className="relative aspect-square w-full">
+    <div className="relative h-full w-full">
       <HeroCanvas beads={beads} progressRef={progressRef} reduced={reduced} />
-      {!reduced && (
-        <p className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 text-xs text-ink-soft/70">
-          Scroll to assemble
-        </p>
-      )}
     </div>
   );
 }
