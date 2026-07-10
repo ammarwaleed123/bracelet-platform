@@ -165,7 +165,7 @@ function CartRow({ line }: { line: CartLine }) {
             rows={2}
             maxLength={240}
             placeholder="Gift message or special request…"
-            className="mt-3 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-ink placeholder:text-stone focus-visible:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-3 w-full rounded-xl border border-input bg-card px-3 py-2 text-base text-ink placeholder:text-stone focus-visible:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
           />
         )}
       </div>
