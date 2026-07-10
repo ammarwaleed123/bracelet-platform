@@ -154,3 +154,51 @@ export const home = {
     cta: { label: "Design yours", href: "/studio" } as NavLink,
   },
 } as const;
+
+/** About page copy. */
+export const about = {
+  eyebrow: "Our story",
+  headline: "Jewellery that means something.",
+  intro:
+    "Aurelia began with a simple belief: the pieces you wear every day should be as personal as the story behind them. So we built a studio where you design your own bracelet, bead by bead — and we handcraft it, to order, in Egypt.",
+
+  story: {
+    title: "Made for you, not for a shelf",
+    body: [
+      "Most jewellery is mass-produced and sits in a warehouse waiting for a buyer. We do the opposite — nothing exists until you design it. When you place an order, an artisan makes your bracelet by hand: the exact one you arranged in the studio.",
+      "It means less waste, no two pieces alike, and a bracelet that is genuinely yours from the first bead to the clasp.",
+    ],
+  },
+
+  craft: {
+    eyebrow: "The craft",
+    title: "Handmade in Egypt",
+    body: "Every bracelet is strung and finished by hand by our makers. We source real stones and quality bases, and we sweat the details — the weight of a bead, the fall of a chain, the meaning of a stone — so the piece feels considered on your wrist.",
+  },
+
+  values: [
+    {
+      title: "Designed by you",
+      body: "A live 3D studio, not a fixed catalogue. Choose every bead and charm and arrange them yourself.",
+    },
+    {
+      title: "Made to order",
+      body: "We craft your design only after you order — no inventory, no waste, no two the same.",
+    },
+    {
+      title: "Stones with meaning",
+      body: "Choose stones for what they carry — clarity, protection, love — not only their colour.",
+    },
+    {
+      title: "For Egypt",
+      body: "Designed and made here, delivered to your door nationwide with cash on delivery.",
+    },
+  ],
+
+  cta: {
+    title: "Design something that's yours.",
+    body: "Open the studio and build a bracelet that tells your story.",
+    primary: { label: "Design yours", href: "/studio" } as NavLink,
+    secondary: { label: "Browse the gallery", href: "/gallery" } as NavLink,
+  },
+} as const;
