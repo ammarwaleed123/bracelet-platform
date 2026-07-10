@@ -122,8 +122,8 @@ export function StudioShell({
     <div className="lg:flex lg:h-[calc(100dvh-4rem)] lg:flex-row">
       {/* Stage — sticky below the 4rem header on mobile, static column on desktop.
           svh (not dvh) keeps the height stable when the mobile URL bar hides on
-          scroll. A soft shadow (not a hard line) lets the palette scroll under it. */}
-      <div className="sticky top-16 z-10 h-[45svh] w-full bg-cream shadow-[0_14px_22px_-20px_rgba(31,26,22,0.5)] lg:relative lg:top-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:shadow-none">
+          scroll. Same cream as the palette so there's no seam between them. */}
+      <div className="sticky top-16 z-10 h-[45svh] w-full bg-cream lg:relative lg:top-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1">
         {ready ? <BraceletCanvas catalog={catalog} /> : <StudioLoading />}
 
         {/* Toolbar overlay */}

@@ -63,7 +63,8 @@ export function Bracelet({
 
   // Drag state in refs so the render-loop and window listeners share it.
   const dragUidRef = useRef<string | null>(null);
-  const dragAngleRef = useRef<number | null>(null);
+  // Live ground-plane point under the finger; the dragged bead follows it.
+  const dragPointRef = useRef<THREE.Vector3 | null>(null);
   const dragBefore = useRef(useStudioStore.getState().getDesignState());
   // Whether the pointer is currently over the delete bin (decides drop action).
   const overTrashRef = useRef(false);
@@ -97,11 +98,16 @@ export function Bracelet({
         e.clientY <= bin.bottom;
       overTrashRef.current = overTrash;
       useStudioStore.getState().setDragOverTrash(overTrash);
-      // While hovering the bin, stop reordering so the bead sits still there.
-      if (overTrash) return;
 
       const hit = pointerToGround(e.clientX, e.clientY);
       if (!hit) return;
+
+      // The dragged bead leaves the ring and follows the finger everywhere,
+      // including off the bracelet toward the delete bin.
+      dragPointRef.current = hit;
+
+      // Over the bin: don't reflow the others — the bead is on its way out.
+      if (overTrash) return;
 
       const diameters = useStudioStore.getState().components.map((c) => {
         const r =
@@ -115,9 +121,6 @@ export function Bracelet({
       const { items } = computeLayout(diameters, useStudioStore.getState().sizeCm);
       const angle = Math.atan2(hit.z, hit.x);
 
-      // The dragged bead glides flat along the string to the cursor's angle.
-      dragAngleRef.current = angle;
-
       useStudioStore
         .getState()
         .moveLive(dragUidRef.current, nearestSlotIndex(items, angle));
@@ -127,7 +130,7 @@ export function Bracelet({
       const uid = dragUidRef.current;
       if (!uid) return;
       dragUidRef.current = null;
-      dragAngleRef.current = null;
+      dragPointRef.current = null;
       if (overTrashRef.current) {
         // Dropped on the bin — delete it as one clean undo step.
         useStudioStore.getState().removeOnDrop(dragBefore.current, uid);
@@ -150,7 +153,7 @@ export function Bracelet({
 
   const onDragStart = (uid: string) => {
     dragUidRef.current = uid;
-    dragAngleRef.current = null;
+    dragPointRef.current = null;
     overTrashRef.current = false;
     dragBefore.current = useStudioStore.getState().getDesignState();
     useStudioStore.getState().select(uid);
@@ -173,7 +176,7 @@ export function Bracelet({
           selected={c.uid === selectedUid}
           animate={animate}
           dragUidRef={dragUidRef}
-          dragAngleRef={dragAngleRef}
+          dragPointRef={dragPointRef}
           onSelect={(uid) => useStudioStore.getState().select(uid)}
           onDragStart={onDragStart}
         />

@@ -11,6 +11,9 @@ import type { StudioBase } from "@/lib/studio/types";
 
 const GOLD = "#b08d57";
 
+// How far a dragged bead lifts off the ring plane as it follows the finger.
+const LIFT_Y = 0.5;
+
 /* ------------------------------------------------------------ base ring -- */
 
 export function BaseRing({
@@ -190,7 +193,7 @@ export function ComponentMesh({
   selected,
   animate,
   dragUidRef,
-  dragAngleRef,
+  dragPointRef,
   onSelect,
   onDragStart,
 }: {
@@ -200,7 +203,8 @@ export function ComponentMesh({
   selected: boolean;
   animate: boolean;
   dragUidRef: RefObject<string | null>;
-  dragAngleRef: RefObject<number | null>;
+  /** Live ground-plane point under the finger while this bead is dragged. */
+  dragPointRef: RefObject<THREE.Vector3 | null>;
   onSelect: (uid: string) => void;
   onDragStart: (uid: string) => void;
 }) {
@@ -209,31 +213,55 @@ export function ComponentMesh({
   const radiusRef = useRef(radius);
   const angleVel = useRef(0);
   const radiusVel = useRef(0);
+  const yRef = useRef(0); // vertical lift, damped back to 0 when not dragging
   const scaleRef = useRef(0); // start small so beads gently spring in
 
   useFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
-    const dragging =
-      dragUidRef.current === resolved.uid && dragAngleRef.current != null;
+    const dt = animate ? Math.min(delta, 0.045) : 1;
+    const draggingFree =
+      dragUidRef.current === resolved.uid && dragPointRef.current != null;
 
-    // Unwrap the goal angle to the nearest equivalent so beads always take the
-    // short way around the ring (never spin the long way for a small swap).
-    let goalAngle = dragging ? dragAngleRef.current! : targetAngle;
+    // A dragged bead pops a touch as it lifts off the ring.
+    const targetScale = draggingFree ? 1.12 : selected ? 1.06 : 1;
+    if (!animate) scaleRef.current = targetScale;
+    else
+      scaleRef.current += (targetScale - scaleRef.current) * Math.min(1, dt * 14);
+    g.scale.setScalar(scaleRef.current);
+
+    if (draggingFree) {
+      // Leave the ring and follow the finger freely (lifted up), so the bead
+      // can travel off the bracelet to the delete bin.
+      const p = dragPointRef.current!;
+      const f = animate ? Math.min(1, dt * 22) : 1;
+      g.position.x += (p.x - g.position.x) * f;
+      g.position.z += (p.z - g.position.z) * f;
+      g.position.y += (LIFT_Y - g.position.y) * f;
+      // Keep the polar refs synced so it springs cleanly back onto the ring if
+      // released without deleting.
+      angleRef.current = Math.atan2(g.position.z, g.position.x);
+      radiusRef.current = Math.hypot(g.position.x, g.position.z);
+      yRef.current = g.position.y;
+      return;
+    }
+
+    // Ring-constrained motion: at rest, or reflowing while another bead drags.
+    // Unwrap the goal angle so beads always take the short way around the ring.
+    let goalAngle = targetAngle;
     while (goalAngle - angleRef.current > Math.PI) goalAngle -= Math.PI * 2;
     while (goalAngle - angleRef.current < -Math.PI) goalAngle += Math.PI * 2;
 
     if (!animate) {
       angleRef.current = goalAngle;
       radiusRef.current = radius;
-      g.scale.setScalar(selected ? 1.06 : 1);
+      yRef.current = 0;
     } else {
-      const dt = Math.min(delta, 0.045);
       angleRef.current = smoothDampScalar(
         angleRef.current,
         goalAngle,
         angleVel,
-        dragging ? 0.05 : 0.14,
+        0.14,
         dt
       );
       radiusRef.current = smoothDampScalar(
@@ -243,14 +271,12 @@ export function ComponentMesh({
         0.16,
         dt
       );
-      const targetScale = selected ? 1.06 : 1;
-      scaleRef.current += (targetScale - scaleRef.current) * Math.min(1, dt * 14);
-      g.scale.setScalar(scaleRef.current);
+      yRef.current += (0 - yRef.current) * Math.min(1, dt * 12);
     }
 
     g.position.set(
       Math.cos(angleRef.current) * radiusRef.current,
-      0,
+      yRef.current,
       Math.sin(angleRef.current) * radiusRef.current
     );
   });
