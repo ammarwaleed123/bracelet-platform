@@ -4,9 +4,16 @@ import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 import type { GalleryItem } from "@/lib/designs/types";
 import { Button } from "@/components/ui/button";
+import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { LikeButton } from "./like-button";
 
-export function DesignCard({ item }: { item: GalleryItem }) {
+export function DesignCard({
+  item,
+  cartQuantity = 0,
+}: {
+  item: GalleryItem;
+  cartQuantity?: number;
+}) {
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-lift">
       <Link
@@ -46,14 +53,18 @@ export function DesignCard({ item }: { item: GalleryItem }) {
           <span className="block tabular-nums text-sm text-ink">
             {formatPrice(item.priceInPiastres)}
           </span>
-          <Button
-            asChild
-            size="sm"
-            variant="outline"
-            className="mt-2 w-full"
-          >
-            <Link href={`/studio/${item.publicId}`}>Customize</Link>
-          </Button>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" variant="outline" className="flex-1">
+              <Link href={`/studio/${item.publicId}`}>Customize</Link>
+            </Button>
+            <AddToCartButton
+              designId={item.id}
+              initialQuantity={cartQuantity}
+              size="sm"
+              label="Add"
+              showViewCart={false}
+            />
+          </div>
         </div>
       </div>
     </div>

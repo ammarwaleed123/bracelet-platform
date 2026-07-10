@@ -106,12 +106,16 @@ function CameraReset({
 /** Registers a thumbnail-capture function backed by this canvas's renderer.
  *  Returns a compact, center-cropped square JPEG (well under the server-action
  *  body limit) rather than the full-resolution PNG. */
-function CaptureRegistrar() {
+function CaptureRegistrar({
+  frontRef,
+}: {
+  frontRef: React.RefObject<THREE.Vector3>;
+}) {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     registerCapture(() => {
       // Hide the ground shadow and any selection halo so the thumbnail is clean
-      // (they stay in the live scene), then render a fresh frame.
+      // (they stay in the live scene).
       const hidden: THREE.Object3D[] = [];
       scene.traverse((o) => {
         if (
@@ -122,7 +126,21 @@ function CaptureRegistrar() {
           hidden.push(o);
         }
       });
+
+      // Render the thumbnail from the canonical front view, whatever angle the
+      // customer left the live camera at — so every saved preview is consistent.
+      const savedPos = camera.position.clone();
+      const savedQuat = camera.quaternion.clone();
+      camera.position.copy(frontRef.current);
+      camera.lookAt(ORIGIN);
+      camera.updateMatrixWorld();
+
       gl.render(scene, camera);
+
+      // Restore the customer's live view and repaint it immediately.
+      camera.position.copy(savedPos);
+      camera.quaternion.copy(savedQuat);
+      camera.updateMatrixWorld();
       for (const o of hidden) o.visible = true;
 
       const src = gl.domElement;
@@ -142,10 +160,13 @@ function CaptureRegistrar() {
       const dw = src.width * scale;
       const dh = src.height * scale;
       ctx.drawImage(src, (size - dw) / 2, (size - dh) / 2, dw, dh);
-      return off.toDataURL("image/jpeg", 0.85);
+      const dataUrl = off.toDataURL("image/jpeg", 0.85);
+      // Repaint the live view so the front-view capture frame doesn't linger.
+      gl.render(scene, camera);
+      return dataUrl;
     });
     return () => registerCapture(null);
-  }, [gl, scene, camera]);
+  }, [gl, scene, camera, frontRef]);
   return null;
 }
 
@@ -213,7 +234,7 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
         maxPolarAngle={1.4}
       />
       <CameraReset controlsRef={controlsRef} frontRef={frontRef} />
-      <CaptureRegistrar />
+      <CaptureRegistrar frontRef={frontRef} />
     </Canvas>
   );
 }

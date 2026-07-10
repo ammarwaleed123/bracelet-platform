@@ -5,11 +5,13 @@ import { notFound } from "next/navigation";
 
 import { formatPrice } from "@/lib/utils";
 import { getPublicDesign, getLikedDesignIds } from "@/lib/designs/queries";
+import { getDesignQuantityInCart } from "@/lib/cart/cart";
 import { getCurrentUser } from "@/lib/auth/guards";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { LikeButton } from "@/components/gallery/like-button";
 import { ShareButton } from "@/components/gallery/share-button";
+import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 
 export async function generateMetadata({
   params,
@@ -41,17 +43,24 @@ export default async function DesignPage({
   const design = await getPublicDesign(publicId, user?.id);
   if (!design) notFound();
 
-  const liked = user
-    ? (await getLikedDesignIds([design.id], user.id)).has(design.id)
-    : false;
+  const [liked, cartQuantity] = await Promise.all([
+    user
+      ? getLikedDesignIds([design.id], user.id).then((s) => s.has(design.id))
+      : Promise.resolve(false),
+    getDesignQuantityInCart(design.id),
+  ]);
+
+  // Owners previewing their own private/saved design shouldn't see gallery-only
+  // framing (a "Back to gallery" link, likes, "Designed by").
+  const inGallery = design.isPublic;
 
   return (
     <Container className="py-12">
       <Link
-        href="/gallery"
+        href={inGallery ? "/gallery" : "/account"}
         className="mb-6 inline-flex items-center gap-1 text-sm text-ink-soft transition-colors hover:text-ink"
       >
-        ← Back to gallery
+        ← {inGallery ? "Back to gallery" : "Back to your designs"}
       </Link>
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Visual */}
@@ -76,7 +85,7 @@ export default async function DesignPage({
         {/* Details */}
         <div>
           <h1 className="font-serif text-4xl text-ink">{design.name}</h1>
-          {design.creatorName && (
+          {inGallery && design.creatorName && (
             <p className="mt-2 text-ink-soft">Designed by {design.creatorName}</p>
           )}
 
@@ -84,15 +93,22 @@ export default async function DesignPage({
             <span className="font-serif text-2xl text-ink">
               {formatPrice(design.priceInPiastres)}
             </span>
-            <LikeButton
-              designId={design.id}
-              liked={liked}
-              count={design.likesCount}
-            />
+            {inGallery && (
+              <LikeButton
+                designId={design.id}
+                liked={liked}
+                count={design.likesCount}
+              />
+            )}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg">
+          <div className="mt-6 flex flex-wrap items-start gap-3">
+            <AddToCartButton
+              designId={design.id}
+              initialQuantity={cartQuantity}
+              size="lg"
+            />
+            <Button asChild size="lg" variant="outline">
               <Link href={`/studio/${design.publicId}`}>Customize this design</Link>
             </Button>
             <ShareButton url={`/design/${design.publicId}`} />

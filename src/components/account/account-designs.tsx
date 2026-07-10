@@ -57,7 +57,7 @@ function DesignRow({ design }: { design: UserDesign }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card">
       <Link
-        href={`/studio/${design.publicId}`}
+        href={`/design/${design.publicId}`}
         className="relative block aspect-square bg-linen"
       >
         {design.thumbnailUrl ? (

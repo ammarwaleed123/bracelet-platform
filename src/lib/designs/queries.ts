@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, ne } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -143,6 +143,9 @@ export type PublicDesign = {
   creatorName: string | null;
   baseName: string | null;
   parts: ResolvedDesignPart[];
+  /** True only when the design is live in the public gallery (vs the owner
+   *  previewing their own private/saved design). */
+  isPublic: boolean;
 };
 
 /** A single public (or owner-visible) design for /design/[publicId]. */
@@ -189,6 +192,7 @@ export async function getPublicDesign(
     creatorName: row.creatorName,
     baseName: row.baseName,
     parts: await resolveParts(row.componentsJson),
+    isPublic,
   };
 }
 
@@ -214,7 +218,8 @@ export async function getUserDesigns(userId: string): Promise<UserDesign[]> {
       moderationStatus: designs.moderationStatus,
     })
     .from(designs)
-    .where(eq(designs.ownerId, userId))
+    // Exclude hidden drafts (created only to back a cart line, not saved).
+    .where(and(eq(designs.ownerId, userId), ne(designs.status, "draft")))
     .orderBy(desc(designs.updatedAt));
 }
 

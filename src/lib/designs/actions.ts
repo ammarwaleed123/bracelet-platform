@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
@@ -24,12 +24,28 @@ const saveSchema = z.object({
   sizeCm: z.number().min(14).max(22),
   components: z.array(componentSchema).max(80),
   thumbnailDataUrl: z.string().startsWith("data:image/").optional(),
+  /**
+   * Whether this should appear in the customer's "Your designs" list. Add-to-
+   * cart passes false, persisting a hidden `draft` purely to back the cart line;
+   * the explicit Save passes true (default), promoting it to a saved design.
+   */
+  saveToAccount: z.boolean().optional(),
 });
 
 export type SaveDesignInput = z.input<typeof saveSchema>;
 export type SaveDesignResult =
   | { ok: true; id: string; publicId: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; existingPublicId?: string };
+
+/** Canonical key for a design's composition (order matters). */
+function compositionKey(
+  baseId: string | null,
+  sizeCm: number,
+  components: { kind: string; refId: string }[]
+): string {
+  const parts = components.map((c) => `${c.kind}:${c.refId}`).join(",");
+  return `${baseId ?? "-"}|${Number(sizeCm)}|${parts}`;
+}
 
 export async function saveDesign(
   input: SaveDesignInput
@@ -41,6 +57,7 @@ export async function saveDesign(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid design." };
   }
   const d = parsed.data;
+  const promote = d.saveToAccount !== false; // Save = true; add-to-cart = false
 
   // Price is always recomputed server-side from the catalog.
   const price = await computeDesignPriceInPiastres(d.baseId, d.components);
@@ -49,6 +66,35 @@ export async function saveDesign(
     kind: c.kind,
     refId: c.refId,
   }));
+
+  // Block saving a design the customer already has (identical base + size +
+  // beads/charms in the same order). Only applies to real saves, not cart
+  // drafts, and ignores the design being edited itself.
+  if (promote) {
+    const key = compositionKey(d.baseId, d.sizeCm, d.components);
+    const owned = await db
+      .select({
+        id: designs.id,
+        publicId: designs.publicId,
+        baseId: designs.baseId,
+        sizeCm: designs.sizeCm,
+        components: designs.componentsJson,
+      })
+      .from(designs)
+      .where(and(eq(designs.ownerId, user.id), ne(designs.status, "draft")));
+    const dup = owned.find((o) => {
+      if (d.designId && o.id === d.designId) return false;
+      const ordered = [...o.components].sort((a, b) => a.slot - b.slot);
+      return compositionKey(o.baseId, Number(o.sizeCm), ordered) === key;
+    });
+    if (dup) {
+      return {
+        ok: false,
+        error: "You already have this design saved.",
+        existingPublicId: dup.publicId,
+      };
+    }
+  }
 
   let designId: string;
   let publicId: string;
@@ -60,6 +106,7 @@ export async function saveDesign(
         id: designs.id,
         ownerId: designs.ownerId,
         publicId: designs.publicId,
+        status: designs.status,
       })
       .from(designs)
       .where(eq(designs.id, d.designId))
@@ -78,10 +125,16 @@ export async function saveDesign(
     designId = existing.id;
     publicId = existing.publicId;
 
+    // Save promotes a draft to a visible saved design (but never downgrades a
+    // published one). Add-to-cart leaves the status untouched.
+    const promotedStatus =
+      promote && existing.status === "draft" ? "saved" : existing.status;
+
     await db
       .update(designs)
       .set({
         name: d.name,
+        status: promotedStatus,
         baseId: d.baseId,
         sizeCm: String(d.sizeCm),
         componentsJson,
@@ -97,7 +150,8 @@ export async function saveDesign(
         publicId,
         ownerId: user.id,
         name: d.name,
-        status: "saved",
+        // Add-to-cart persists a hidden draft; Save creates a visible design.
+        status: promote ? "saved" : "draft",
         baseId: d.baseId,
         sizeCm: String(d.sizeCm),
         componentsJson,

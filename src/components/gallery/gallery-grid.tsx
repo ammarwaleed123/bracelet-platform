@@ -13,10 +13,13 @@ export function GalleryGrid({
   initialItems,
   initialHasMore,
   filters,
+  cartQuantities = {},
 }: {
   initialItems: GalleryItem[];
   initialHasMore: boolean;
   filters: GalleryFilters;
+  /** designId → quantity in cart, for the add-to-cart steppers. */
+  cartQuantities?: Record<string, number>;
 }) {
   const [items, setItems] = useState(initialItems);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -49,7 +52,11 @@ export function GalleryGrid({
     <div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => (
-          <DesignCard key={item.id} item={item} />
+          <DesignCard
+            key={item.id}
+            item={item}
+            cartQuantity={cartQuantities[item.id] ?? 0}
+          />
         ))}
       </div>
       {hasMore && (

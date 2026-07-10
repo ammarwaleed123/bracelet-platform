@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { gallery } from "@/content/site";
 import { getGalleryPage } from "@/lib/designs/queries";
+import { getCartDesignQuantities } from "@/lib/cart/cart";
 import type { GallerySort } from "@/lib/designs/types";
 import { Container } from "@/components/layout/container";
 import { FilterBar } from "@/components/gallery/filter-bar";
@@ -42,11 +43,10 @@ export default async function GalleryPage({
   const maxPiastres = toPiastres(first(sp.max));
 
   const filters = { sort, search, minPiastres, maxPiastres };
-  const { items, hasMore } = await getGalleryPage({
-    ...filters,
-    offset: 0,
-    limit: 24,
-  });
+  const [{ items, hasMore }, cartQuantities] = await Promise.all([
+    getGalleryPage({ ...filters, offset: 0, limit: 24 }),
+    getCartDesignQuantities(),
+  ]);
 
   return (
     <Container className="py-12">
@@ -65,6 +65,7 @@ export default async function GalleryPage({
         initialItems={items}
         initialHasMore={hasMore}
         filters={filters}
+        cartQuantities={cartQuantities}
       />
     </Container>
   );
