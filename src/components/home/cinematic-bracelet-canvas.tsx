@@ -69,13 +69,14 @@ function Scene({
     const assembleP = clamp01(p / 0.35);
 
     // Cinematic camera: pushes in and lowers as you scroll, with a gentle orbit.
-    const camZ = 9 - p * 3.4;
-    const camY = 3.2 - p * 1.5;
-    const camX = Math.sin(p * Math.PI * 0.5) * 0.8;
+    // Looks at the raised ring so the text band below it stays clear.
+    const camZ = 9 - p * 2.7;
+    const camY = 4.2 - p * 0.9;
+    const camX = Math.sin(p * Math.PI * 0.5) * 0.7;
     state.camera.position.x += (camX - state.camera.position.x) * 0.08;
     state.camera.position.y += (camY - state.camera.position.y) * 0.08;
     state.camera.position.z += (camZ - state.camera.position.z) * 0.08;
-    state.camera.lookAt(0, 0, 0);
+    state.camera.lookAt(0, 1.3, 0);
 
     // The ring turns (a gentle idle spin + a scroll-scrub) and tilts face-on.
     g.rotation.y = (reduced ? 0 : t * 0.12) + p * Math.PI * 1.1;
@@ -102,9 +103,9 @@ function Scene({
   });
 
   return (
-    <group ref={group}>
+    <group ref={group} position={[0, 1.3, 0]}>
       <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[radius, 0.035, 16, 180]} />
+        <torusGeometry args={[radius, 0.035, 12, 120]} />
         <meshStandardMaterial
           color="#c8a24a"
           metalness={0.9}
@@ -124,15 +125,12 @@ function Scene({
               if (el) meshes.current[i] = el;
             }}
           >
-            <sphereGeometry args={[r, 32, 32]} />
-            <meshPhysicalMaterial
+            <sphereGeometry args={[r, 24, 24]} />
+            {/* Cheap glossy material (no transmission pass) — much lighter. */}
+            <meshStandardMaterial
               color={b.colorHex}
-              roughness={b.roughness}
+              roughness={Math.min(0.5, b.roughness)}
               metalness={b.metalness}
-              transmission={b.transmission}
-              thickness={r * 2}
-              ior={1.5}
-              clearcoat={0.25}
               envMapIntensity={1.1}
             />
           </mesh>
@@ -146,22 +144,27 @@ export default function CinematicBraceletCanvas({
   beads,
   progressRef,
   reduced,
+  active = true,
 }: {
   beads: HeroBead[];
   progressRef: React.MutableRefObject<number>;
   reduced: boolean;
+  /** When false (intro scrolled out of view), stop rendering to save the GPU. */
+  active?: boolean;
 }) {
   return (
     <Canvas
-      dpr={[1, 2]}
-      camera={{ position: [0, 3.2, 9], fov: 40, near: 0.1, far: 100 }}
-      gl={{ alpha: true, antialias: true }}
+      // Cap the pixel ratio for performance; pause the render loop off-screen.
+      dpr={[1, 1.5]}
+      frameloop={active ? "always" : "never"}
+      camera={{ position: [0, 4.2, 9], fov: 40, near: 0.1, far: 100 }}
+      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       style={{ pointerEvents: "none" }}
     >
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 4]} intensity={1.2} />
       <directionalLight position={[-5, 3, -2]} intensity={0.4} color="#fff2df" />
-      <Environment resolution={128} frames={1}>
+      <Environment resolution={64} frames={1}>
         <Lightformer intensity={2.2} position={[0, 5, 3]} scale={[10, 10, 1]} />
         <Lightformer
           intensity={1.1}
