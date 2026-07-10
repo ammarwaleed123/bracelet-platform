@@ -8,7 +8,7 @@ import type { GalleryItem } from "@/lib/designs/types";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/layout/container";
 import { DesignCard } from "@/components/gallery/design-card";
-import { HeroBracelet } from "@/components/home/hero-bracelet";
+import { CinematicIntro } from "@/components/home/cinematic-intro";
 import { Reveal } from "@/components/home/reveal";
 
 const VALUE_ICONS = [Palette, Hammer, Truck];
@@ -22,47 +22,8 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* ---------------------------------------------------------- hero -- */}
-      <section className="relative">
-        <Container className="grid items-center gap-12 py-16 sm:py-24 lg:grid-cols-2 lg:gap-16">
-          <Reveal>
-            <p className="label-caps">{home.eyebrow}</p>
-            <h1 className="mt-5 text-balance font-serif text-5xl leading-[1.05] text-ink sm:text-6xl">
-              {home.headline}
-            </h1>
-            <p className="mt-6 max-w-lg text-pretty text-lg leading-relaxed text-ink-soft">
-              {home.subhead}
-            </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg">
-                <Link href={home.primaryCta.href}>{home.primaryCta.label}</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href={home.secondaryCta.href}>
-                  {home.secondaryCta.label}
-                </Link>
-              </Button>
-            </div>
-            <p className="mt-6 text-sm text-ink-soft">
-              Handmade in Egypt · Cash on delivery nationwide
-            </p>
-          </Reveal>
-
-          {/* Gently rotating 3D bracelet of real catalog beads. */}
-          <Reveal delay={120} className="relative">
-            <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gold-tint/40 blur-3xl" />
-            {heroBeads.length > 0 ? (
-              <HeroBracelet beads={heroBeads} />
-            ) : (
-              <div className="flex aspect-square items-center justify-center rounded-3xl border border-border bg-gradient-to-b from-linen to-sand shadow-soft">
-                <p className="max-w-xs px-6 text-center text-sm text-ink-soft">
-                  Your design, brought to life in 3D.
-                </p>
-              </div>
-            )}
-          </Reveal>
-        </Container>
-      </section>
+      {/* ------------------------------------------------ cinematic intro -- */}
+      <CinematicIntro beads={heroBeads} />
 
       {/* --------------------------------------------------- value props -- */}
       <div className="border-y border-border bg-linen/60">
@@ -141,22 +102,6 @@ export default async function HomePage() {
           </Container>
         </div>
       )}
-
-      {/* ----------------------------------------------------- meaning -- */}
-      <Container className="py-20">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <p className="label-caps">{home.meaning.eyebrow}</p>
-          <h2 className="mt-3 font-serif text-4xl text-ink">
-            {home.meaning.title}
-          </h2>
-          <p className="mt-5 text-lg leading-relaxed text-ink-soft">
-            {home.meaning.body}
-          </p>
-          <Button asChild size="lg" className="mt-8">
-            <Link href={home.meaning.cta.href}>{home.meaning.cta.label}</Link>
-          </Button>
-        </Reveal>
-      </Container>
 
       {/* ----------------------------------------------------- closing -- */}
       <div className="bg-ink">
