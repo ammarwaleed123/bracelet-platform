@@ -3,7 +3,7 @@ import { Fraunces, Inter } from "next/font/google";
 
 import { site } from "@/content/site";
 import { SiteHeader } from "@/components/layout/site-header";
-import { SiteFooter } from "@/components/layout/site-footer";
+import { ConditionalFooter } from "@/components/layout/conditional-footer";
 import "./globals.css";
 
 // Serif display face for headlines.
@@ -56,7 +56,7 @@ export default function RootLayout({
         <main id="main" className="flex-1">
           {children}
         </main>
-        <SiteFooter />
+        <ConditionalFooter />
       </body>
     </html>
   );
