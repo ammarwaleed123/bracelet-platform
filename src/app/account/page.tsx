@@ -51,11 +51,18 @@ export default async function AccountPage() {
         <div>
           <p className="label-caps">Account</p>
           <h1 className="mt-3 font-serif text-4xl text-ink">Hello, {name}</h1>
-          {storeCredit > 0 && (
-            <p className="mt-2 text-sm text-gold-strong">
-              Store credit: {formatPrice(storeCredit)}
-            </p>
-          )}
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-sm">
+            <span className="text-ink-soft">Store credit</span>
+            <span
+              className={
+                storeCredit > 0
+                  ? "font-medium text-gold-strong"
+                  : "font-medium text-ink"
+              }
+            >
+              {formatPrice(storeCredit)}
+            </span>
+          </p>
         </div>
         <div className="flex flex-wrap gap-3">
           {isAdmin && (
