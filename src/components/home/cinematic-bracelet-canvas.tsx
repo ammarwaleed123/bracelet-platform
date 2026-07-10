@@ -69,9 +69,12 @@ function Scene({
     const assembleP = clamp01(p / 0.35);
 
     // Cinematic camera: a gentle push-in + orbit, looking at a fixed height.
-    const camZ = 9 - p * 2.0;
-    const camY = 4.0 - p * 0.4;
-    const camX = Math.sin(p * Math.PI * 0.5) * 0.6;
+    // Pull back on portrait screens so the wide ring fits instead of cropping.
+    const aspect = state.size.width / Math.max(1, state.size.height);
+    const fit = aspect < 1 ? Math.min(2.3, 1 / aspect) : 1;
+    const camZ = (9 - p * 2.0) * fit;
+    const camY = (4.0 - p * 0.4) * fit;
+    const camX = Math.sin(p * Math.PI * 0.5) * 0.6 * fit;
     state.camera.position.x += (camX - state.camera.position.x) * 0.08;
     state.camera.position.y += (camY - state.camera.position.y) * 0.08;
     state.camera.position.z += (camZ - state.camera.position.z) * 0.08;
