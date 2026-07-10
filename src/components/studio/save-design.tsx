@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { useStudioStore } from "@/lib/studio/store";
 import { indexCatalog, resolveComponents } from "@/lib/studio/derive";
@@ -12,6 +12,7 @@ import { publishDesign, saveDesign } from "@/lib/designs/actions";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
 export function SaveDesign({ catalog }: { catalog: StudioCatalog }) {
   const index = useMemo(() => indexCatalog(catalog), [catalog]);
@@ -101,30 +102,11 @@ function SaveDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-ink/40"
-      onClick={onClose}
+    <Modal
+      title={saved ? "Design saved" : "Name your design"}
+      onClose={onClose}
     >
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-lift"
-          onClick={(e) => e.stopPropagation()}
-        >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-xl text-ink">
-            {saved ? "Design saved" : "Name your design"}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="text-ink-soft hover:text-ink"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        {!saved ? (
+      {!saved ? (
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="design-name" className="label-caps block">
@@ -217,8 +199,6 @@ function SaveDialog({
             </div>
           </div>
         )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

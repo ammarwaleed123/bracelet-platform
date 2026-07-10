@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ShoppingBag, X } from "lucide-react";
+import { Check, ShoppingBag } from "lucide-react";
 
 import { useStudioStore } from "@/lib/studio/store";
 import { indexCatalog, resolveComponents } from "@/lib/studio/derive";
@@ -14,6 +14,7 @@ import { addToCart } from "@/lib/cart/actions";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
 /**
  * Adds the customer's finished bracelet to the cart. If the design isn't saved
@@ -99,30 +100,8 @@ function AddToCartDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-ink/40"
-      onClick={onClose}
-    >
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-lift"
-          onClick={(e) => e.stopPropagation()}
-        >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-xl text-ink">
-            {added ? "Added to cart" : "Add to cart"}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="text-ink-soft hover:text-ink"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        {added ? (
+    <Modal title={added ? "Added to cart" : "Add to cart"} onClose={onClose}>
+      {added ? (
           <div className="space-y-4 text-center">
             <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-gold-tint text-gold-strong">
               <Check className="size-6" />
@@ -167,8 +146,6 @@ function AddToCartDialog({
             </div>
           </div>
         )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
