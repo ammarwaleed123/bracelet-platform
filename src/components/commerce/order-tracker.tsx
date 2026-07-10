@@ -18,9 +18,13 @@ export function OrderTracker({
   events: OrderEvent[];
 }) {
   const cancelled = order.status === "cancelled";
-  const currentIndex = ORDER_STATUS_FLOW.indexOf(
-    order.status as (typeof ORDER_STATUS_FLOW)[number]
-  );
+  // Legacy orders placed before auto-confirm map to the first step.
+  const currentIndex =
+    order.status === "pending_confirmation"
+      ? 0
+      : ORDER_STATUS_FLOW.indexOf(
+          order.status as (typeof ORDER_STATUS_FLOW)[number]
+        );
 
   const addr = order.shippingAddressJson;
 

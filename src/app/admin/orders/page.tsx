@@ -7,9 +7,7 @@ import { AdminTable } from "@/components/admin/list";
 
 export default async function AdminOrdersPage() {
   const rows = await getAllOrders();
-  const pending = rows.filter(
-    (r) => r.status === "pending_confirmation"
-  ).length;
+  const toCraft = rows.filter((r) => r.status === "confirmed").length;
 
   return (
     <div>
@@ -17,9 +15,9 @@ export default async function AdminOrdersPage() {
         Orders <span className="text-ink-soft">({rows.length})</span>
       </h2>
       <p className="mb-6 text-sm text-ink-soft">
-        {pending > 0
-          ? `${pending} awaiting confirmation.`
-          : "Nothing awaiting confirmation."}
+        {toCraft > 0
+          ? `${toCraft} new — ready to craft.`
+          : "No new orders to craft."}
       </p>
 
       {rows.length === 0 ? (

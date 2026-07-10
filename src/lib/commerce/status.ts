@@ -8,9 +8,9 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-/** The happy-path progression shown in the tracking timeline. */
+/** The happy-path progression shown in the tracking timeline. Orders are
+ *  confirmed on placement, so the timeline starts at Confirmed. */
 export const ORDER_STATUS_FLOW = [
-  "pending_confirmation",
   "confirmed",
   "crafting",
   "shipped",

@@ -195,7 +195,8 @@ export async function placeOrder(
         .values({
           orderNumber,
           userId: user?.id ?? null,
-          status: "pending_confirmation",
+          // COD orders are confirmed on placement (no manual confirm step).
+          status: "confirmed",
           paymentMethod: "cod",
           paymentStatus: "unpaid",
           subtotalInPiastres: subtotal,
@@ -227,8 +228,8 @@ export async function placeOrder(
 
       await tx.insert(orderEvents).values({
         orderId: order!.id,
-        status: "pending_confirmation",
-        note: "Order placed — awaiting confirmation.",
+        status: "confirmed",
+        note: "Order placed and confirmed.",
       });
 
       // Clear the cart.
