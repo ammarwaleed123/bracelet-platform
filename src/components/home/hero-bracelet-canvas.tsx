@@ -7,13 +7,6 @@ import * as THREE from "three";
 
 import type { HeroBead } from "@/lib/catalog/hero-beads";
 
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
-const smoothstep = (a: number, b: number, x: number) => {
-  const t = clamp01((x - a) / (b - a));
-  return t * t * (3 - 2 * t);
-};
-
 function Scene({
   beads,
   progressRef,
@@ -25,16 +18,14 @@ function Scene({
 }) {
   const group = useRef<THREE.Group>(null);
   const meshes = useRef<THREE.Mesh[]>([]);
-  const ringRef = useRef<THREE.Mesh>(null);
 
-  // Cycle the available beads up to a fuller, even count for a nicer ring.
   const count = beads.length >= 12 ? Math.min(beads.length, 18) : 14;
   const cycled = useMemo(
     () => Array.from({ length: count }, (_, i) => beads[i % beads.length]!),
     [beads, count]
   );
 
-  // Ring positions (beads sit adjacent around the circle, like the studio).
+  // Beads sit adjacent around the ring, like the studio layout.
   const { ring, radius } = useMemo(() => {
     const diams = cycled.map((b) => b.diameterMm / 10);
     const circ = diams.reduce((a, b) => a + b, 0);
@@ -49,69 +40,34 @@ function Scene({
     return { ring, radius: R };
   }, [cycled]);
 
-  // Scattered start positions — up high and spread out, so they fall into place.
-  const scatter = useMemo(
-    () =>
-      cycled.map(
-        () =>
-          new THREE.Vector3(
-            (Math.random() * 2 - 1) * 4.5,
-            3 + Math.random() * 5.5,
-            (Math.random() * 2 - 1) * 4.5
-          )
-      ),
-    [cycled]
-  );
-
   useFrame((state, dtRaw) => {
     const g = group.current;
     if (!g) return;
     const dt = Math.min(dtRaw, 0.05);
-    const p = reduced ? 1 : clamp01(progressRef.current ?? 0);
     const t = state.clock.elapsedTime;
+    const scroll = reduced ? 0 : progressRef.current ?? 0;
 
-    // Assembly happens over the first ~40% of the journey.
-    const assembleP = clamp01(p / 0.4);
-
-    // The ring turns continuously, tilts more face-on and grows a touch as the
-    // visitor scrolls deeper into the story.
-    if (!reduced) g.rotation.y += dt * 0.25;
-    g.rotation.x = -0.55 + smoothstep(0.35, 1, p) * 0.4;
-    const scale = 0.9 + smoothstep(0, 1, p) * 0.28;
-    g.scale.setScalar(scale);
+    // A gentle, continuous turn in the light, with a hint of scroll-driven tilt.
+    if (!reduced) g.rotation.y += dt * 0.3;
+    g.rotation.x = -0.5 + scroll * 0.18;
 
     for (let i = 0; i < meshes.current.length; i++) {
       const m = meshes.current[i];
       const target = ring[i];
-      const from = scatter[i];
-      if (!m || !target || !from) continue;
-      // Staggered assembly — beads arrive one after another as you scroll.
-      const local = clamp01((assembleP - (i / count) * 0.35) / 0.65);
-      const e = easeOutCubic(local);
-      m.position.lerpVectors(from, target, e);
-      if (!reduced && e < 0.999) {
-        m.position.y += Math.sin(t * 1.6 + i) * 0.06 * (1 - e);
-        m.rotation.y += dt * 0.6 * (1 - e);
-      }
-    }
-
-    if (ringRef.current) {
-      const rm = ringRef.current.material as THREE.MeshStandardMaterial;
-      rm.opacity = smoothstep(0.1, 0.5, assembleP);
-      ringRef.current.scale.setScalar(0.6 + 0.4 * smoothstep(0.1, 0.6, assembleP));
+      if (!m || !target) continue;
+      m.position.copy(target);
+      if (!reduced) m.position.y += Math.sin(t * 1.2 + i) * 0.04;
     }
   });
 
   return (
-    <group ref={group}>
-      <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
+    <group ref={group} rotation={[-0.5, 0, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[radius, 0.035, 16, 180]} />
         <meshStandardMaterial
           color="#c8a24a"
           metalness={0.9}
           roughness={0.25}
-          transparent
-          opacity={0}
           envMapIntensity={1.2}
         />
       </mesh>
@@ -121,6 +77,7 @@ function Scene({
         return (
           <mesh
             key={i}
+            position={ring[i]}
             ref={(el) => {
               if (el) meshes.current[i] = el;
             }}

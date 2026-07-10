@@ -14,11 +14,9 @@ const HeroCanvas = dynamic(() => import("./hero-bracelet-canvas"), {
 });
 
 /**
- * The persistent 3D bracelet for the home-page scroll journey. Real catalog
- * beads fall in and assemble into a bracelet, which then tilts, grows and turns
- * as the visitor scrolls through the narrative beats. Fills its (pinned)
- * container, is purely decorative (pointer-events off), and stays static under
- * prefers-reduced-motion.
+ * A gently rotating 3D bracelet of real catalog beads for the home-page hero.
+ * Purely decorative (pointer-events off); a hint of scroll nudges its tilt.
+ * Static under prefers-reduced-motion.
  */
 export function HeroBracelet({ beads }: { beads: HeroBead[] }) {
   const progressRef = useRef(0);
@@ -30,11 +28,10 @@ export function HeroBracelet({ beads }: { beads: HeroBead[] }) {
     const onMq = () => setReduced(mq.matches);
     mq.addEventListener?.("change", onMq);
 
-    // Progress runs 0 → 1 over roughly the journey's pinned scroll range.
     const onScroll = () => {
       progressRef.current = Math.max(
         0,
-        Math.min(1, window.scrollY / (window.innerHeight * 2.2))
+        Math.min(1, window.scrollY / window.innerHeight)
       );
     };
     onScroll();
@@ -47,7 +44,7 @@ export function HeroBracelet({ beads }: { beads: HeroBead[] }) {
   }, []);
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative aspect-square w-full">
       <HeroCanvas beads={beads} progressRef={progressRef} reduced={reduced} />
     </div>
   );
