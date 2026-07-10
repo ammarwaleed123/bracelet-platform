@@ -88,6 +88,12 @@ export const paymentStatus = pgEnum("payment_status", [
 
 export const discountType = pgEnum("discount_type", ["percent", "fixed"]);
 
+/** Lifecycle of a creator commission entry. */
+export const commissionStatus = pgEnum("commission_status", [
+  "accrued",
+  "reversed",
+]);
+
 /* --------------------------------------------------------- json shapes -- */
 
 /** Params the studio uses to render a base (torus/cord path + material). */
@@ -525,6 +531,50 @@ export const orderEvents = pgTable("order_events", {
     .defaultNow(),
 });
 
+/* ----------------------------------------------------------- settings -- */
+
+/** Simple key/value app settings (e.g. commission_percent). */
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/* ------------------------------------------------ commission entries -- */
+
+/**
+ * Creator commission ledger. One row per order_item that earned a commission
+ * (unique on order_item_id → idempotent crediting). The creator's running
+ * balance lives in profiles.store_credit_in_piastres; this table makes it
+ * auditable and reversible when an order is cancelled.
+ */
+export const commissionEntries = pgTable("commission_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  orderItemId: uuid("order_item_id")
+    .notNull()
+    .unique()
+    .references(() => orderItems.id, { onDelete: "cascade" }),
+  creatorId: uuid("creator_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  designId: uuid("design_id").references(() => designs.id, {
+    onDelete: "set null",
+  }),
+  amountInPiastres: integer("amount_in_piastres").notNull(),
+  status: commissionStatus("status").notNull().default("accrued"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 /* ----------------------------------------------------------- relations -- */
 
 export const beadsRelations = relations(beads, ({ many }) => ({
@@ -646,6 +696,24 @@ export const orderEventsRelations = relations(orderEvents, ({ one }) => ({
   }),
 }));
 
+export const commissionEntriesRelations = relations(
+  commissionEntries,
+  ({ one }) => ({
+    order: one(orders, {
+      fields: [commissionEntries.orderId],
+      references: [orders.id],
+    }),
+    creator: one(profiles, {
+      fields: [commissionEntries.creatorId],
+      references: [profiles.id],
+    }),
+    design: one(designs, {
+      fields: [commissionEntries.designId],
+      references: [designs.id],
+    }),
+  })
+);
+
 /* --------------------------------------------------------------- types -- */
 
 export type Profile = typeof profiles.$inferSelect;
@@ -671,3 +739,5 @@ export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type NewOrderItem = typeof orderItems.$inferInsert;
 export type OrderEvent = typeof orderEvents.$inferSelect;
+export type Setting = typeof settings.$inferSelect;
+export type CommissionEntry = typeof commissionEntries.$inferSelect;

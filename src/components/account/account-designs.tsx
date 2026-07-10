@@ -50,6 +50,7 @@ function DesignRow({ design }: { design: UserDesign }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(design.name);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const badge = statusLabel(design);
   const isPublished = design.status === "published_public";
@@ -138,7 +139,13 @@ function DesignRow({ design }: { design: UserDesign }) {
               size="sm"
               variant="ghost"
               disabled={pending}
-              onClick={() => startTransition(() => publishDesign(design.id))}
+              onClick={() =>
+                startTransition(async () => {
+                  setPublishError(null);
+                  const res = await publishDesign(design.id);
+                  if (!res.ok) setPublishError(res.error);
+                })
+              }
             >
               Publish
             </Button>
@@ -172,6 +179,9 @@ function DesignRow({ design }: { design: UserDesign }) {
             </Button>
           )}
         </div>
+        {publishError && (
+          <p className="mt-2 text-xs text-destructive">{publishError}</p>
+        )}
       </div>
     </div>
   );
