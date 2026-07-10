@@ -11,14 +11,61 @@ import { registerCapture } from "@/lib/studio/capture";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { Bracelet } from "./bracelet";
 
-const FRONT = new THREE.Vector3(0, 6.5, 6);
+// Direction the camera looks from (a gentle top-down front view). The actual
+// distance is computed to fit the whole bracelet for the current viewport.
+const VIEW_DIR = new THREE.Vector3(0, 6.5, 6).normalize();
 const ORIGIN = new THREE.Vector3(0, 0, 0);
 
-/** Smoothly returns the camera to the default flat-lay view when requested. */
-function CameraReset({
+/**
+ * Places the camera so the entire bracelet fits the frame, accounting for the
+ * viewport's aspect ratio. On a portrait phone the horizontal field of view is
+ * much narrower than the vertical, so we pull the camera back until the wide
+ * ring fits horizontally too — otherwise the default view crops the bracelet.
+ * Writes the computed position into `frontRef` so the reset button and the
+ * initial mount share one target. Refits on viewport resize / orientation flip.
+ */
+function FitCamera({
+  radius,
+  frontRef,
   controlsRef,
 }: {
+  radius: number;
+  frontRef: React.RefObject<THREE.Vector3>;
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
+}) {
+  const { camera, size } = useThree();
+
+  useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    // Bounding radius of the ring plus beads, with a little breathing room.
+    const fitRadius = radius + 1;
+    const vHalf = ((cam.fov * Math.PI) / 180) / 2;
+    const aspect = size.width / Math.max(1, size.height);
+    const hHalf = Math.atan(Math.tan(vHalf) * aspect);
+    const halfFov = Math.min(vHalf, hHalf);
+    const dist = fitRadius / Math.sin(halfFov);
+
+    frontRef.current.copy(VIEW_DIR).multiplyScalar(dist);
+    cam.position.copy(frontRef.current);
+    cam.updateProjectionMatrix();
+    const controls = controlsRef.current;
+    if (controls) {
+      controls.target.copy(ORIGIN);
+      controls.update();
+    }
+    // Refit when the canvas is resized (e.g. rotating the phone).
+  }, [camera, size.width, size.height, radius, frontRef, controlsRef]);
+
+  return null;
+}
+
+/** Smoothly returns the camera to the fitted flat-lay view when requested. */
+function CameraReset({
+  controlsRef,
+  frontRef,
+}: {
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  frontRef: React.RefObject<THREE.Vector3>;
 }) {
   const nonce = useStudioStore((s) => s.cameraResetNonce);
   const { camera } = useThree();
@@ -30,15 +77,16 @@ function CameraReset({
 
   useFrame((_, delta) => {
     if (!active.current) return;
+    const front = frontRef.current;
     const t = Math.min(1, delta * 6);
-    camera.position.lerp(FRONT, t);
+    camera.position.lerp(front, t);
     const controls = controlsRef.current;
     if (controls) {
       controls.target.lerp(ORIGIN, t);
       controls.update();
     }
-    if (camera.position.distanceTo(FRONT) < 0.02) {
-      camera.position.copy(FRONT);
+    if (camera.position.distanceTo(front) < 0.02) {
+      camera.position.copy(front);
       active.current = false;
     }
   });
@@ -94,6 +142,8 @@ function CaptureRegistrar() {
 
 export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  // Shared fitted "front" view target, written by FitCamera, read by CameraReset.
+  const frontRef = useRef(new THREE.Vector3(0, 6.5, 6));
   const select = useStudioStore((s) => s.select);
 
   return (
@@ -128,19 +178,32 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
         />
       </Environment>
 
-      {/* Bracelet includes its own soft ground shadow, sized to the ring. */}
-      <Bracelet catalog={catalog} controlsRef={controlsRef} />
+      {/* Bracelet includes its own soft ground shadow, sized to the ring.
+          It renders FitCamera, which frames the whole ring on mount/resize. */}
+      <Bracelet
+        catalog={catalog}
+        controlsRef={controlsRef}
+        renderFit={(radius) => (
+          <FitCamera
+            radius={radius}
+            frontRef={frontRef}
+            controlsRef={controlsRef}
+          />
+        )}
+      />
 
       <OrbitControls
         ref={controlsRef}
         enablePan={false}
         enableDamping
         minDistance={4}
-        maxDistance={13}
+        // Roomy enough for the fitted portrait-phone distance (wide ring, narrow
+        // horizontal FOV) without clamping the initial framing.
+        maxDistance={32}
         minPolarAngle={0.2}
         maxPolarAngle={1.4}
       />
-      <CameraReset controlsRef={controlsRef} />
+      <CameraReset controlsRef={controlsRef} frontRef={frontRef} />
       <CaptureRegistrar />
     </Canvas>
   );

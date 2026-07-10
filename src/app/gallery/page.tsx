@@ -57,14 +57,7 @@ export default async function GalleryPage({
       </header>
 
       <div className="mb-8">
-        <FilterBar
-          current={{
-            search: search ?? "",
-            sort,
-            minEgp: first(sp.min) ?? "",
-            maxEgp: first(sp.max) ?? "",
-          }}
-        />
+        <FilterBar current={{ search: search ?? "", sort }} />
       </div>
 
       <GalleryGrid

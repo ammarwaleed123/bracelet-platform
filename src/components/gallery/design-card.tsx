@@ -42,11 +42,16 @@ export function DesignCard({ item }: { item: GalleryItem }) {
         {item.creatorName && (
           <p className="mt-0.5 text-xs text-ink-soft">by {item.creatorName}</p>
         )}
-        <div className="mt-3 flex items-center justify-between">
-          <span className="tabular-nums text-sm text-ink">
+        <div className="mt-auto pt-3">
+          <span className="block tabular-nums text-sm text-ink">
             {formatPrice(item.priceInPiastres)}
           </span>
-          <Button asChild size="sm" variant="outline">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="mt-2 w-full"
+          >
             <Link href={`/studio/${item.publicId}`}>Customize</Link>
           </Button>
         </div>

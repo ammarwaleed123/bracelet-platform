@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -28,9 +34,12 @@ function prefersReducedMotion() {
 export function Bracelet({
   catalog,
   controlsRef,
+  renderFit,
 }: {
   catalog: StudioCatalog;
   controlsRef: RefObject<OrbitControlsImpl | null>;
+  /** Renders the camera-fit helper once the ring radius is known. */
+  renderFit?: (radius: number) => ReactNode;
 }) {
   const index = useMemo(() => indexCatalog(catalog), [catalog]);
   const { camera, gl, raycaster } = useThree();
@@ -124,6 +133,7 @@ export function Bracelet({
 
   return (
     <group>
+      {renderFit?.(layout.radiusUnits)}
       <SoftShadow radius={layout.radiusUnits} />
       <BaseRing base={base} radius={layout.radiusUnits} />
       {resolved.map((c, i) => (
