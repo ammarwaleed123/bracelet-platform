@@ -43,7 +43,7 @@ export function Palette({ catalog }: { catalog: StudioCatalog }) {
   }, [items, catalog.categories]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col lg:h-full">
       {/* Tabs */}
       <div className="flex shrink-0 gap-1 rounded-full bg-sand p-1">
         {(["bead", "charm"] as const).map((t) => (
@@ -92,7 +92,7 @@ export function Palette({ catalog }: { catalog: StudioCatalog }) {
       )}
 
       {/* Items */}
-      <div className="mt-4 grid min-h-0 flex-1 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-3 gap-2 pr-1 sm:grid-cols-4 lg:min-h-0 lg:flex-1 lg:grid-cols-3 lg:overflow-y-auto">
         {filtered.map((item) => {
           const outOfStock = item.stockQuantity <= 0;
           const willFit = fits(index, sizeCm, components, item.diameterMm);

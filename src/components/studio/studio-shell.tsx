@@ -116,11 +116,12 @@ export function StudioShell({
   }, []);
 
   return (
-    // Fixed-height split on every screen so the bracelet stays pinned while the
-    // palette scrolls under it — on mobile you no longer scroll the stage away.
-    <div className="flex h-[calc(100dvh-4rem)] flex-col lg:flex-row">
-      {/* Stage */}
-      <div className="relative h-[48dvh] w-full shrink-0 lg:h-full lg:min-w-0 lg:flex-1">
+    // Mobile: normal page scroll with the stage pinned like the navbar (sticky),
+    // so the bracelet is always visible while the palette scrolls beneath it.
+    // Desktop: a fixed-height two-column split with an internally-scrolling panel.
+    <div className="lg:flex lg:h-[calc(100dvh-4rem)] lg:flex-row">
+      {/* Stage — sticky below the 4rem header on mobile, static column on desktop */}
+      <div className="sticky top-16 z-10 h-[45dvh] w-full border-b border-border bg-[#f7f4ef] lg:relative lg:top-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:border-b-0">
         {ready ? <BraceletCanvas catalog={catalog} /> : <StudioLoading />}
 
         {/* Toolbar overlay */}
@@ -158,10 +159,11 @@ export function StudioShell({
         <StageOverlays catalog={catalog} />
       </div>
 
-      {/* Control panel — takes the remaining height and scrolls the palette
-          internally; fixed-width rail on desktop. */}
-      <aside className="flex min-h-0 w-full flex-1 flex-col border-t border-border bg-background lg:h-full lg:w-[380px] lg:flex-none lg:border-l lg:border-t-0">
-        <div className="shrink-0 space-y-5 p-5">
+      {/* Control panel — flows as normal page content on mobile (page scrolls
+          under the pinned stage); a fixed-width, internally-scrolling rail on
+          desktop. */}
+      <aside className="w-full border-t border-border bg-background lg:flex lg:h-full lg:w-[380px] lg:flex-col lg:border-l lg:border-t-0">
+        <div className="space-y-5 p-5 lg:shrink-0">
           <div className="flex items-center justify-between gap-3">
             <p className="font-serif text-lg text-ink">Design</p>
             <div className="flex items-center gap-3">
@@ -172,7 +174,7 @@ export function StudioShell({
           <BaseSelector catalog={catalog} />
           <SizeControl catalog={catalog} />
         </div>
-        <div className="min-h-0 flex-1 overflow-hidden border-t border-border p-5">
+        <div className="border-t border-border p-5 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
           <Palette catalog={catalog} />
         </div>
       </aside>
