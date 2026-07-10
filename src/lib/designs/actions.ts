@@ -19,6 +19,7 @@ import {
   profiles,
 } from "@/lib/db/schema";
 import { computeDesignPriceInPiastres } from "@/lib/designs/pricing";
+import { compositionKey } from "@/lib/designs/composition";
 import { uploadDesignThumbnail } from "@/lib/designs/storage";
 
 const componentSchema = z.object({
@@ -46,16 +47,6 @@ export type SaveDesignInput = z.input<typeof saveSchema>;
 export type SaveDesignResult =
   | { ok: true; id: string; publicId: string }
   | { ok: false; error: string; existingPublicId?: string };
-
-/** Canonical key for a design's composition (order matters). */
-function compositionKey(
-  baseId: string | null,
-  sizeCm: number,
-  components: { kind: string; refId: string }[]
-): string {
-  const parts = components.map((c) => `${c.kind}:${c.refId}`).join(",");
-  return `${baseId ?? "-"}|${Number(sizeCm)}|${parts}`;
-}
 
 export async function saveDesign(
   input: SaveDesignInput

@@ -6,6 +6,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cartItems, designs } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/guards";
+import { saveDesign, type SaveDesignInput } from "@/lib/designs/actions";
+import { compositionKey } from "@/lib/designs/composition";
 import {
   cartItemBelongsToCart,
   getCartId,
@@ -15,6 +17,9 @@ import {
 export type CartActionResult = { ok: true } | { ok: false; error: string };
 export type QuantityResult =
   | { ok: true; quantity: number }
+  | { ok: false; error: string };
+export type StudioCartResult =
+  | { ok: true; id: string }
   | { ok: false; error: string };
 
 const MAX_QTY = 20;
@@ -79,6 +84,59 @@ export async function addToCart(
   revalidatePath("/cart");
   revalidatePath("/", "layout"); // header badge
   return { ok: true };
+}
+
+/**
+ * Add the bracelet currently in the studio to the cart, merging by composition:
+ * if the cart already contains a line for the same bracelet (same base + size +
+ * beads/charms in order — even if named differently), bump that line's quantity
+ * instead of adding a second line. Otherwise persist a fresh cart draft and add
+ * it. Works for guests (anonymous draft) too.
+ */
+export async function addStudioDesignToCart(
+  input: SaveDesignInput
+): Promise<StudioCartResult> {
+  const cartId = await getOrCreateCart();
+  const key = compositionKey(
+    input.baseId ?? null,
+    Number(input.sizeCm),
+    input.components
+  );
+
+  const rows = await db
+    .select({
+      itemId: cartItems.id,
+      designId: cartItems.designId,
+      quantity: cartItems.quantity,
+      baseId: designs.baseId,
+      sizeCm: designs.sizeCm,
+      components: designs.componentsJson,
+    })
+    .from(cartItems)
+    .innerJoin(designs, eq(cartItems.designId, designs.id))
+    .where(eq(cartItems.cartId, cartId));
+
+  const match = rows.find((r) => {
+    const ordered = [...r.components].sort((a, b) => a.slot - b.slot);
+    return compositionKey(r.baseId, Number(r.sizeCm), ordered) === key;
+  });
+
+  if (match) {
+    await db
+      .update(cartItems)
+      .set({ quantity: Math.min(MAX_QTY, match.quantity + 1) })
+      .where(eq(cartItems.id, match.itemId));
+    revalidatePath("/cart");
+    revalidatePath("/", "layout");
+    return { ok: true, id: match.designId };
+  }
+
+  // No match — persist a fresh draft (never reuse an id) and add a new line.
+  const saved = await saveDesign({ ...input, designId: undefined, saveToAccount: false });
+  if (!saved.ok) return { ok: false, error: saved.error };
+  const res = await addToCart(saved.id);
+  if (!res.ok) return res;
+  return { ok: true, id: saved.id };
 }
 
 /**
