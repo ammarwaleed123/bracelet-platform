@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { Container } from "@/components/layout/container";
 
-export function SiteHeader() {
+export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -63,9 +63,14 @@ export function SiteHeader() {
                 <User aria-hidden />
               </Link>
             </Button>
-            <Button asChild variant="ghost" size="icon">
+            <Button asChild variant="ghost" size="icon" className="relative">
               <Link href={accountNav.cart.href} aria-label={accountNav.cart.label}>
                 <ShoppingBag aria-hidden />
+                {cartCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-medium leading-4 text-cream">
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </span>
+                )}
               </Link>
             </Button>
             <Button asChild size="sm" className="hidden md:inline-flex">

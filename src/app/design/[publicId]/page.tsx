@@ -10,6 +10,7 @@ import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { LikeButton } from "@/components/gallery/like-button";
 import { ShareButton } from "@/components/gallery/share-button";
+import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 
 export async function generateMetadata({
   params,
@@ -91,8 +92,9 @@ export default async function DesignPage({
             />
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg">
+          <div className="mt-6 flex flex-wrap items-start gap-3">
+            <AddToCartButton designId={design.id} size="lg" />
+            <Button asChild size="lg" variant="outline">
               <Link href={`/studio/${design.publicId}`}>Customize this design</Link>
             </Button>
             <ShareButton url={`/design/${design.publicId}`} />

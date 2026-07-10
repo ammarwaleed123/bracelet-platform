@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
 
 import { site } from "@/content/site";
+import { getCartCount } from "@/lib/cart/cart";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ConditionalFooter } from "@/components/layout/conditional-footer";
 import "./globals.css";
@@ -46,13 +47,14 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const cartCount = await getCartCount();
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body className="flex min-h-dvh flex-col antialiased">
-        <SiteHeader />
+        <SiteHeader cartCount={cartCount} />
         <main id="main" className="flex-1">
           {children}
         </main>
