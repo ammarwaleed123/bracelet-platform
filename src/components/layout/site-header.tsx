@@ -86,7 +86,27 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               onClick={() => setMenuOpen((open) => !open)}
             >
-              {menuOpen ? <X aria-hidden /> : <Menu aria-hidden />}
+              {/* Crossfade + rotate between the open (☰) and close (✕) icons. */}
+              <span className="relative block size-4">
+                <Menu
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-0 transition-all duration-200 ease-[var(--ease-out-soft)] motion-reduce:transition-none",
+                    menuOpen
+                      ? "rotate-90 scale-50 opacity-0"
+                      : "rotate-0 scale-100 opacity-100"
+                  )}
+                />
+                <X
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-0 transition-all duration-200 ease-[var(--ease-out-soft)] motion-reduce:transition-none",
+                    menuOpen
+                      ? "rotate-0 scale-100 opacity-100"
+                      : "-rotate-90 scale-50 opacity-0"
+                  )}
+                />
+              </span>
             </Button>
           </div>
         </Container>
@@ -98,39 +118,64 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
         inside the 64px header box. As a sibling of the header it covers the
         viewport correctly. Opaque background hides the page beneath.
       */}
-      {menuOpen && (
-        <div
-          id="mobile-menu"
-          className="fixed inset-x-0 bottom-0 top-16 z-50 bg-cream md:hidden"
-        >
-          <Container className="flex h-full flex-col py-8">
-            <nav aria-label="Mobile" className="flex flex-col gap-1">
-              {primaryNav.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "rounded-lg px-3 py-3 font-serif text-2xl text-ink transition-colors hover:bg-sand",
-                    isActive(link.href) && "text-gold"
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-            <div className="mt-auto flex flex-col gap-3 pt-8">
-              <Button asChild size="lg">
-                <Link href={primaryCta.href}>{primaryCta.label}</Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href={accountNav.account.href}>
-                  {accountNav.account.label}
-                </Link>
-              </Button>
-            </div>
-          </Container>
-        </div>
-      )}
+      {/*
+        Kept mounted (not conditionally rendered) so it can animate BOTH open
+        and closed. `transition-all` lets `visibility` flip only after the fade
+        finishes, so the panel stays interactive-free but visible during exit.
+      */}
+      <div
+        id="mobile-menu"
+        aria-hidden={!menuOpen}
+        className={cn(
+          "fixed inset-x-0 bottom-0 top-16 z-50 bg-cream transition-all duration-200 ease-[var(--ease-out-soft)] md:hidden motion-reduce:transition-none",
+          menuOpen
+            ? "translate-y-0 opacity-100"
+            : "invisible -translate-y-2 opacity-0 pointer-events-none"
+        )}
+      >
+        <Container className="flex h-full flex-col py-8">
+          <nav aria-label="Mobile" className="flex flex-col gap-1">
+            {primaryNav.map((link, i) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                tabIndex={menuOpen ? undefined : -1}
+                style={{ transitionDelay: menuOpen ? `${i * 45}ms` : "0ms" }}
+                className={cn(
+                  "rounded-lg px-3 py-3 font-serif text-2xl text-ink transition-[color,transform,opacity] duration-200 ease-[var(--ease-out-soft)] hover:bg-sand motion-reduce:translate-y-0 motion-reduce:transition-none",
+                  menuOpen ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
+                  isActive(link.href) && "text-gold"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          <div
+            style={{
+              transitionDelay: menuOpen ? `${primaryNav.length * 45}ms` : "0ms",
+            }}
+            className={cn(
+              "mt-auto flex flex-col gap-3 pt-8 transition-[transform,opacity] duration-200 ease-[var(--ease-out-soft)] motion-reduce:translate-y-0 motion-reduce:transition-none",
+              menuOpen ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+            )}
+          >
+            <Button asChild size="lg">
+              <Link href={primaryCta.href} tabIndex={menuOpen ? undefined : -1}>
+                {primaryCta.label}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link
+                href={accountNav.account.href}
+                tabIndex={menuOpen ? undefined : -1}
+              >
+                {accountNav.account.label}
+              </Link>
+            </Button>
+          </div>
+        </Container>
+      </div>
     </>
   );
 }
