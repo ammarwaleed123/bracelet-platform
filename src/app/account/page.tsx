@@ -7,11 +7,13 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
 import { getUserDesigns } from "@/lib/designs/queries";
+import { getUserOrders } from "@/lib/commerce/orders-query";
 import { formatPrice } from "@/lib/utils";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccountDesigns } from "@/components/account/account-designs";
+import { AccountOrders } from "@/components/account/account-orders";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -25,13 +27,14 @@ export default async function AccountPage() {
     redirect("/sign-in");
   }
 
-  const [[profile], designs] = await Promise.all([
+  const [[profile], designs, orders] = await Promise.all([
     db
       .select({ role: profiles.role, credit: profiles.storeCreditInPiastres })
       .from(profiles)
       .where(eq(profiles.id, user.id))
       .limit(1),
     getUserDesigns(user.id),
+    getUserOrders(user.id),
   ]);
   const isAdmin = profile?.role === "admin";
   const storeCredit = profile?.credit ?? 0;
@@ -60,6 +63,11 @@ export default async function AccountPage() {
           <SignOutButton />
         </div>
       </div>
+
+      <section className="mt-12">
+        <h2 className="mb-4 font-serif text-2xl text-ink">Your orders</h2>
+        <AccountOrders orders={orders} />
+      </section>
 
       <section className="mt-12">
         <h2 className="mb-4 font-serif text-2xl text-ink">Your designs</h2>
