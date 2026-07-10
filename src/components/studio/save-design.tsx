@@ -14,7 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 
-export function SaveDesign({ catalog }: { catalog: StudioCatalog }) {
+export function SaveDesign({
+  catalog,
+  isSignedIn = false,
+}: {
+  catalog: StudioCatalog;
+  isSignedIn?: boolean;
+}) {
   const index = useMemo(() => indexCatalog(catalog), [catalog]);
   const [open, setOpen] = useState(false);
 
@@ -31,8 +37,35 @@ export function SaveDesign({ catalog }: { catalog: StudioCatalog }) {
       >
         Save design
       </Button>
-      {open && <SaveDialog index={index} onClose={() => setOpen(false)} />}
+      {open &&
+        (isSignedIn ? (
+          <SaveDialog index={index} onClose={() => setOpen(false)} />
+        ) : (
+          <SignInToSave onClose={() => setOpen(false)} />
+        ))}
     </>
+  );
+}
+
+/** Guests can order but must sign in to save to their account / the gallery. */
+function SignInToSave({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal title="Sign in to save" onClose={onClose}>
+      <p className="text-sm leading-relaxed text-ink-soft">
+        You can add this bracelet to your cart and order it without an account.
+        To save it to <span className="text-ink">your designs</span> and add it
+        to the <span className="text-ink">gallery</span> — where others can buy
+        it and earn you store credit — please sign in.
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <Button variant="outline" onClick={onClose}>
+          Keep designing
+        </Button>
+        <Button asChild>
+          <Link href="/sign-in">Sign in</Link>
+        </Button>
+      </div>
+    </Modal>
   );
 }
 
