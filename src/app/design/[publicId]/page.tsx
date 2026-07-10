@@ -50,13 +50,17 @@ export default async function DesignPage({
     getDesignQuantityInCart(design.id),
   ]);
 
+  // Owners previewing their own private/saved design shouldn't see gallery-only
+  // framing (a "Back to gallery" link, likes, "Designed by").
+  const inGallery = design.isPublic;
+
   return (
     <Container className="py-12">
       <Link
-        href="/gallery"
+        href={inGallery ? "/gallery" : "/account"}
         className="mb-6 inline-flex items-center gap-1 text-sm text-ink-soft transition-colors hover:text-ink"
       >
-        ← Back to gallery
+        ← {inGallery ? "Back to gallery" : "Back to your designs"}
       </Link>
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Visual */}
@@ -81,7 +85,7 @@ export default async function DesignPage({
         {/* Details */}
         <div>
           <h1 className="font-serif text-4xl text-ink">{design.name}</h1>
-          {design.creatorName && (
+          {inGallery && design.creatorName && (
             <p className="mt-2 text-ink-soft">Designed by {design.creatorName}</p>
           )}
 
@@ -89,11 +93,13 @@ export default async function DesignPage({
             <span className="font-serif text-2xl text-ink">
               {formatPrice(design.priceInPiastres)}
             </span>
-            <LikeButton
-              designId={design.id}
-              liked={liked}
-              count={design.likesCount}
-            />
+            {inGallery && (
+              <LikeButton
+                designId={design.id}
+                liked={liked}
+                count={design.likesCount}
+              />
+            )}
           </div>
 
           <div className="mt-6 flex flex-wrap items-start gap-3">

@@ -59,12 +59,14 @@ function SaveDialog({
   const [displayName, setDisplayName] = useState("");
   const [showName, setShowName] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingPublicId, setExistingPublicId] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ id: string; publicId: string } | null>(null);
   const [submittedToGallery, setSubmittedToGallery] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const onSave = () => {
     setError(null);
+    setExistingPublicId(null);
     startTransition(async () => {
       const result = await saveDesign({
         designId: savedDesignId ?? undefined,
@@ -77,6 +79,7 @@ function SaveDialog({
       });
       if (!result.ok) {
         setError(result.error);
+        setExistingPublicId(result.existingPublicId ?? null);
         return;
       }
       setSaveMeta({ savedDesignId: result.id, designName: name });
@@ -132,7 +135,23 @@ function SaveDialog({
                 We suggested one from your stones — make it yours.
               </p>
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <p className="text-sm text-destructive">
+                {error}
+                {existingPublicId && (
+                  <>
+                    {" "}
+                    <Link
+                      href={`/design/${existingPublicId}`}
+                      className="font-medium underline underline-offset-2"
+                    >
+                      Open it
+                    </Link>
+                    .
+                  </>
+                )}
+              </p>
+            )}
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={onClose}>
                 Cancel

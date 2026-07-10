@@ -143,6 +143,9 @@ export type PublicDesign = {
   creatorName: string | null;
   baseName: string | null;
   parts: ResolvedDesignPart[];
+  /** True only when the design is live in the public gallery (vs the owner
+   *  previewing their own private/saved design). */
+  isPublic: boolean;
 };
 
 /** A single public (or owner-visible) design for /design/[publicId]. */
@@ -189,6 +192,7 @@ export async function getPublicDesign(
     creatorName: row.creatorName,
     baseName: row.baseName,
     parts: await resolveParts(row.componentsJson),
+    isPublic,
   };
 }
 

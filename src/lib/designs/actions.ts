@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
@@ -35,7 +35,17 @@ const saveSchema = z.object({
 export type SaveDesignInput = z.input<typeof saveSchema>;
 export type SaveDesignResult =
   | { ok: true; id: string; publicId: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; existingPublicId?: string };
+
+/** Canonical key for a design's composition (order matters). */
+function compositionKey(
+  baseId: string | null,
+  sizeCm: number,
+  components: { kind: string; refId: string }[]
+): string {
+  const parts = components.map((c) => `${c.kind}:${c.refId}`).join(",");
+  return `${baseId ?? "-"}|${Number(sizeCm)}|${parts}`;
+}
 
 export async function saveDesign(
   input: SaveDesignInput
@@ -56,6 +66,35 @@ export async function saveDesign(
     kind: c.kind,
     refId: c.refId,
   }));
+
+  // Block saving a design the customer already has (identical base + size +
+  // beads/charms in the same order). Only applies to real saves, not cart
+  // drafts, and ignores the design being edited itself.
+  if (promote) {
+    const key = compositionKey(d.baseId, d.sizeCm, d.components);
+    const owned = await db
+      .select({
+        id: designs.id,
+        publicId: designs.publicId,
+        baseId: designs.baseId,
+        sizeCm: designs.sizeCm,
+        components: designs.componentsJson,
+      })
+      .from(designs)
+      .where(and(eq(designs.ownerId, user.id), ne(designs.status, "draft")));
+    const dup = owned.find((o) => {
+      if (d.designId && o.id === d.designId) return false;
+      const ordered = [...o.components].sort((a, b) => a.slot - b.slot);
+      return compositionKey(o.baseId, Number(o.sizeCm), ordered) === key;
+    });
+    if (dup) {
+      return {
+        ok: false,
+        error: "You already have this design saved.",
+        existingPublicId: dup.publicId,
+      };
+    }
+  }
 
   let designId: string;
   let publicId: string;
