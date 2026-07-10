@@ -157,6 +157,35 @@ export async function getCartLines(): Promise<CartLine[]> {
   );
 }
 
+/** Map of designId → quantity in the current cart (for stepper buttons). */
+export async function getCartDesignQuantities(): Promise<
+  Record<string, number>
+> {
+  const cartId = await getCartId();
+  if (!cartId) return {};
+  const rows = await db
+    .select({ designId: cartItems.designId, quantity: cartItems.quantity })
+    .from(cartItems)
+    .where(eq(cartItems.cartId, cartId));
+  const map: Record<string, number> = {};
+  for (const r of rows) map[r.designId] = r.quantity;
+  return map;
+}
+
+/** Quantity of a single design in the current cart (0 if not present). */
+export async function getDesignQuantityInCart(
+  designId: string
+): Promise<number> {
+  const cartId = await getCartId();
+  if (!cartId) return 0;
+  const [row] = await db
+    .select({ quantity: cartItems.quantity })
+    .from(cartItems)
+    .where(and(eq(cartItems.cartId, cartId), eq(cartItems.designId, designId)))
+    .limit(1);
+  return row?.quantity ?? 0;
+}
+
 /** Total item quantity in the current cart (for the header badge). */
 export async function getCartCount(): Promise<number> {
   const cartId = await getCartId();
@@ -166,6 +195,18 @@ export async function getCartCount(): Promise<number> {
     .from(cartItems)
     .where(eq(cartItems.cartId, cartId));
   return rows.reduce((sum, r) => sum + r.quantity, 0);
+}
+
+/** Count + subtotal for the header badge and mobile cart bar in one pass. */
+export async function getCartSummary(): Promise<{
+  count: number;
+  subtotalInPiastres: number;
+}> {
+  const lines = await getCartLines();
+  return {
+    count: lines.reduce((s, l) => s + l.quantity, 0),
+    subtotalInPiastres: lines.reduce((s, l) => s + l.lineTotalInPiastres, 0),
+  };
 }
 
 /** Cart item helper used by the delete/quantity actions to enforce ownership. */

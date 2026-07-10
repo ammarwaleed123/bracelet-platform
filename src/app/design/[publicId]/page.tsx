@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { formatPrice } from "@/lib/utils";
 import { getPublicDesign, getLikedDesignIds } from "@/lib/designs/queries";
+import { getDesignQuantityInCart } from "@/lib/cart/cart";
 import { getCurrentUser } from "@/lib/auth/guards";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
@@ -42,9 +43,12 @@ export default async function DesignPage({
   const design = await getPublicDesign(publicId, user?.id);
   if (!design) notFound();
 
-  const liked = user
-    ? (await getLikedDesignIds([design.id], user.id)).has(design.id)
-    : false;
+  const [liked, cartQuantity] = await Promise.all([
+    user
+      ? getLikedDesignIds([design.id], user.id).then((s) => s.has(design.id))
+      : Promise.resolve(false),
+    getDesignQuantityInCart(design.id),
+  ]);
 
   return (
     <Container className="py-12">
@@ -93,7 +97,11 @@ export default async function DesignPage({
           </div>
 
           <div className="mt-6 flex flex-wrap items-start gap-3">
-            <AddToCartButton designId={design.id} size="lg" />
+            <AddToCartButton
+              designId={design.id}
+              initialQuantity={cartQuantity}
+              size="lg"
+            />
             <Button asChild size="lg" variant="outline">
               <Link href={`/studio/${design.publicId}`}>Customize this design</Link>
             </Button>

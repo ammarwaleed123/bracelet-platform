@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
 
 import { site } from "@/content/site";
-import { getCartCount } from "@/lib/cart/cart";
+import { getCartSummary } from "@/lib/cart/cart";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ConditionalFooter } from "@/components/layout/conditional-footer";
+import { MobileCartBar } from "@/components/cart/mobile-cart-bar";
 import "./globals.css";
 
 // Serif display face for headlines.
@@ -50,7 +51,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const cartCount = await getCartCount();
+  const { count: cartCount, subtotalInPiastres } = await getCartSummary();
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body className="flex min-h-dvh flex-col antialiased">
@@ -59,6 +60,7 @@ export default async function RootLayout({
           {children}
         </main>
         <ConditionalFooter />
+        <MobileCartBar count={cartCount} subtotalInPiastres={subtotalInPiastres} />
       </body>
     </html>
   );

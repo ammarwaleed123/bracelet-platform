@@ -14,6 +14,7 @@ import type { StudioCatalog, StudioDesignState } from "@/lib/studio/types";
 import { Palette } from "./palette";
 import { BaseSelector, ClearAllButton, PriceChip, SizeControl, Toolbar } from "./controls";
 import { SaveDesign } from "./save-design";
+import { AddToCartStudio } from "./add-to-cart-studio";
 import { StageOverlays } from "./stage-overlays";
 import { StudioLoading } from "./studio-loading";
 
@@ -168,9 +169,10 @@ export function StudioShell({
         <div className="space-y-5 p-5 lg:shrink-0">
           <div className="flex items-center justify-between gap-3">
             <p className="font-serif text-lg text-ink">Design</p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <ClearAllButton />
               <SaveDesign catalog={catalog} />
+              <AddToCartStudio catalog={catalog} />
             </div>
           </div>
           <BaseSelector catalog={catalog} />
