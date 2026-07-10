@@ -70,7 +70,7 @@ export function Palette({ catalog }: { catalog: StudioCatalog }) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={tab === "bead" ? "Search stones…" : "Search charms…"}
-        className="mt-3 h-10 w-full rounded-xl border border-input bg-card px-4 text-sm text-ink placeholder:text-stone focus-visible:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-3 h-10 w-full rounded-xl border border-input bg-card px-4 text-base text-ink placeholder:text-stone focus-visible:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
       />
 
       {/* Category chips */}
