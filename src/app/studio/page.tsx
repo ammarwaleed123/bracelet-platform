@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getStudioCatalog } from "@/lib/catalog/studio";
+import { getCurrentUser } from "@/lib/auth/guards";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { StudioShell } from "@/components/studio/studio-shell";
@@ -13,7 +14,10 @@ export const metadata: Metadata = {
 };
 
 export default async function StudioPage() {
-  const catalog = await getStudioCatalog();
+  const [catalog, user] = await Promise.all([
+    getStudioCatalog(),
+    getCurrentUser(),
+  ]);
 
   // The studio needs at least a base and some beads to be usable.
   if (catalog.bases.length === 0 || catalog.beads.length === 0) {
@@ -30,5 +34,5 @@ export default async function StudioPage() {
     );
   }
 
-  return <StudioShell catalog={catalog} />;
+  return <StudioShell catalog={catalog} isSignedIn={user != null} />;
 }

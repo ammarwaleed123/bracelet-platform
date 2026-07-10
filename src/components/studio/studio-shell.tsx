@@ -34,9 +34,11 @@ function isFormField(el: EventTarget | null) {
 export function StudioShell({
   catalog,
   initial,
+  isSignedIn = false,
 }: {
   catalog: StudioCatalog;
   initial?: StudioLoadDesign;
+  isSignedIn?: boolean;
 }) {
   const [ready, setReady] = useState(false);
   const [showHint, setShowHint] = useState(false);
@@ -172,7 +174,7 @@ export function StudioShell({
             {/* Desktop: actions live in the always-visible rail header. On mobile
                 they move to a fixed bottom bar (below) so they never scroll away. */}
             <div className="hidden items-center gap-2 lg:flex">
-              <SaveDesign catalog={catalog} />
+              <SaveDesign catalog={catalog} isSignedIn={isSignedIn} />
               <AddToCartStudio catalog={catalog} />
             </div>
           </div>
@@ -187,7 +189,7 @@ export function StudioShell({
       {/* Mobile-only fixed action bar — Save + Add to cart always reachable. */}
       <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-border bg-background/95 p-3 backdrop-blur lg:hidden">
         <div className="flex-1 [&>button]:w-full">
-          <SaveDesign catalog={catalog} />
+          <SaveDesign catalog={catalog} isSignedIn={isSignedIn} />
         </div>
         <div className="flex-1 [&>button]:w-full">
           <AddToCartStudio catalog={catalog} />

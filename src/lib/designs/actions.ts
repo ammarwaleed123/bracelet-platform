@@ -5,7 +5,11 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { ensureProfile, requireUser } from "@/lib/auth/guards";
+import {
+  ensureProfile,
+  getCurrentUser,
+  requireUser,
+} from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import {
   designLikes,
@@ -56,14 +60,24 @@ function compositionKey(
 export async function saveDesign(
   input: SaveDesignInput
 ): Promise<SaveDesignResult> {
-  const user = await requireUser();
-  await ensureProfile(user); // guarantees the owner_id FK target exists
+  // Guests can add to cart / order without an account (anonymous draft). Only
+  // saving to "Your designs" or publishing to the gallery needs a sign-in.
+  const user = await getCurrentUser();
   const parsed = saveSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid design." };
   }
   const d = parsed.data;
   const promote = d.saveToAccount !== false; // Save = true; add-to-cart = false
+
+  if (promote && !user) {
+    return {
+      ok: false,
+      error: "Sign in to save your design and add it to the gallery.",
+    };
+  }
+  if (user) await ensureProfile(user); // guarantees the owner_id FK target exists
+  const ownerId = user?.id ?? null;
 
   // Price is always recomputed server-side from the catalog.
   const price = await computeDesignPriceInPiastres(d.baseId, d.components);
@@ -76,7 +90,7 @@ export async function saveDesign(
   // Block saving a design the customer already has (identical base + size +
   // beads/charms in the same order). Only applies to real saves, not cart
   // drafts, and ignores the design being edited itself.
-  if (promote) {
+  if (promote && user) {
     const key = compositionKey(d.baseId, d.sizeCm, d.components);
     const owned = await db
       .select({
@@ -118,7 +132,10 @@ export async function saveDesign(
       .where(eq(designs.id, d.designId))
       .limit(1);
     if (!existing) return { ok: false, error: "Design not found." };
-    if (existing.ownerId !== user.id) {
+    // Owner (incl. a guest updating their own anonymous draft) may update; a
+    // logged-in admin may update any design for curation.
+    if (existing.ownerId !== ownerId) {
+      if (!user) return { ok: false, error: "Design not found." };
       const [profile] = await db
         .select({ role: profiles.role })
         .from(profiles)
@@ -154,7 +171,7 @@ export async function saveDesign(
       .insert(designs)
       .values({
         publicId,
-        ownerId: user.id,
+        ownerId,
         name: d.name,
         // Add-to-cart persists a hidden draft; Save creates a visible design.
         status: promote ? "saved" : "draft",

@@ -28,5 +28,7 @@ export default async function StudioDesignPage({
   if (!initial) notFound();
   if (catalog.bases.length === 0) notFound();
 
-  return <StudioShell catalog={catalog} initial={initial} />;
+  return (
+    <StudioShell catalog={catalog} initial={initial} isSignedIn={user != null} />
+  );
 }
