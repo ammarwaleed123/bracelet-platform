@@ -17,10 +17,12 @@ const smoothstep = (a: number, b: number, x: number) => {
 function Scene({
   beads,
   progressRef,
+  shakeRef,
   reduced,
 }: {
   beads: HeroBead[];
   progressRef: React.MutableRefObject<number>;
+  shakeRef: React.MutableRefObject<number>;
   reduced: boolean;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -86,6 +88,11 @@ function Scene({
     g.rotation.y = (reduced ? 0 : t * 0.12) + p * Math.PI * 1.1;
     g.rotation.x = -0.55 + smoothstep(0.3, 1, p) * 0.42;
 
+    // Shake-to-shake: a decaying impulse jitters every bead when the phone is
+    // shaken (set from the device's accelerometer in the wrapper).
+    const shake = reduced ? 0 : shakeRef.current ?? 0;
+    if (shakeRef.current > 0.001) shakeRef.current *= 0.9;
+
     for (let i = 0; i < meshes.current.length; i++) {
       const m = meshes.current[i];
       const target = ring[i];
@@ -97,6 +104,11 @@ function Scene({
       if (!reduced && e < 0.999) {
         m.position.y += Math.sin(t * 1.6 + i) * 0.06 * (1 - e);
         m.rotation.y += dt * 0.6 * (1 - e);
+      }
+      if (shake > 0.01) {
+        m.position.x += Math.sin(t * 45 + i * 12.9) * shake * 0.18;
+        m.position.y += Math.cos(t * 40 + i * 7.3) * shake * 0.18;
+        m.position.z += Math.sin(t * 52 + i * 3.1) * shake * 0.14;
       }
     }
 
@@ -147,11 +159,13 @@ function Scene({
 export default function CinematicBraceletCanvas({
   beads,
   progressRef,
+  shakeRef,
   reduced,
   active = true,
 }: {
   beads: HeroBead[];
   progressRef: React.MutableRefObject<number>;
+  shakeRef: React.MutableRefObject<number>;
   reduced: boolean;
   /** When false (intro scrolled out of view), stop rendering to save the GPU. */
   active?: boolean;
@@ -177,7 +191,12 @@ export default function CinematicBraceletCanvas({
           color="#fff5e6"
         />
       </Environment>
-      <Scene beads={beads} progressRef={progressRef} reduced={reduced} />
+      <Scene
+        beads={beads}
+        progressRef={progressRef}
+        shakeRef={shakeRef}
+        reduced={reduced}
+      />
     </Canvas>
   );
 }

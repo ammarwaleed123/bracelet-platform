@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
 
 import { site } from "@/content/site";
-import { getCartSummary } from "@/lib/cart/cart";
+import { getCartCount } from "@/lib/cart/cart";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ConditionalFooter } from "@/components/layout/conditional-footer";
 import { MobileCartBar } from "@/components/cart/mobile-cart-bar";
@@ -51,7 +51,8 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const { count: cartCount, subtotalInPiastres } = await getCartSummary();
+  // Only the item count (a single cheap query) — no per-item price recompute.
+  const cartCount = await getCartCount();
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       {/* suppressHydrationWarning: browser extensions inject attributes on
@@ -62,7 +63,7 @@ export default async function RootLayout({
           {children}
         </main>
         <ConditionalFooter />
-        <MobileCartBar count={cartCount} subtotalInPiastres={subtotalInPiastres} />
+        <MobileCartBar count={cartCount} />
       </body>
     </html>
   );

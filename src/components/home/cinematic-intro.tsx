@@ -19,6 +19,11 @@ const CinematicCanvas = dynamic(
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const bump = (p: number, center: number, half: number) =>
   clamp01(1 - Math.abs(p - center) / half);
+
+// iOS 13+ gates the accelerometer behind a permission prompt.
+type DeviceMotionEventiOS = typeof DeviceMotionEvent & {
+  requestPermission?: () => Promise<"granted" | "denied">;
+};
 // A faint cream halo — the text sits below the ring, so this is just insurance.
 const halo = "[text-shadow:0_1px_10px_rgba(250,248,245,0.75)]";
 
@@ -29,6 +34,7 @@ const halo = "[text-shadow:0_1px_10px_rgba(250,248,245,0.75)]";
  */
 export function CinematicIntro({ beads }: { beads: HeroBead[] }) {
   const progressRef = useRef(0);
+  const shakeRef = useRef(0);
   const beatRefs = useRef<(HTMLDivElement | null)[]>([]);
   const hintRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -76,9 +82,45 @@ export function CinematicIntro({ beads }: { beads: HeroBead[] }) {
       io.observe(sectionRef.current);
     }
 
+    // Shake the phone → shake the beads (accelerometer). Skipped for reduced
+    // motion; iOS needs a tap to grant permission.
+    const lastA = { x: 0, y: 0, z: 0 };
+    const onMotion = (e: DeviceMotionEvent) => {
+      const a = e.accelerationIncludingGravity;
+      if (!a) return;
+      const x = a.x ?? 0;
+      const y = a.y ?? 0;
+      const z = a.z ?? 0;
+      const delta =
+        Math.abs(x - lastA.x) + Math.abs(y - lastA.y) + Math.abs(z - lastA.z);
+      lastA.x = x;
+      lastA.y = y;
+      lastA.z = z;
+      if (delta > 22) shakeRef.current = Math.min(1.6, shakeRef.current + 0.7);
+    };
+    const DM = window.DeviceMotionEvent as DeviceMotionEventiOS | undefined;
+    let grant: (() => void) | undefined;
+    if (!mq.matches && DM) {
+      if (typeof DM.requestPermission === "function") {
+        grant = () => {
+          DM.requestPermission?.()
+            .then((r) => {
+              if (r === "granted")
+                window.addEventListener("devicemotion", onMotion);
+            })
+            .catch(() => {});
+        };
+        window.addEventListener("touchend", grant, { once: true });
+      } else {
+        window.addEventListener("devicemotion", onMotion);
+      }
+    }
+
     return () => {
       window.removeEventListener("scroll", onScroll);
       mq.removeEventListener?.("change", onMq);
+      window.removeEventListener("devicemotion", onMotion);
+      if (grant) window.removeEventListener("touchend", grant);
       io?.disconnect();
       if (raf) cancelAnimationFrame(raf);
     };
@@ -97,6 +139,7 @@ export function CinematicIntro({ beads }: { beads: HeroBead[] }) {
             <CinematicCanvas
               beads={beads}
               progressRef={progressRef}
+              shakeRef={shakeRef}
               reduced={reduced}
               active={active}
             />
