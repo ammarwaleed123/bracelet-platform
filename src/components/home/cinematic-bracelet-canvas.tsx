@@ -68,16 +68,17 @@ function Scene({
     const p = reduced ? 1 : clamp01(progressRef.current ?? 0);
     const assembleP = clamp01(p / 0.35);
 
-    // Cinematic camera: pushes in and lowers as you scroll, with a gentle orbit.
-    // Looks at the raised ring so the text band below it stays clear.
-    const camZ = 9 - p * 2.7;
-    const camY = 4.2 - p * 0.9;
-    const camX = Math.sin(p * Math.PI * 0.5) * 0.7;
+    // Cinematic camera: a gentle push-in + orbit, looking at a fixed height.
+    const camZ = 9 - p * 2.0;
+    const camY = 4.0 - p * 0.4;
+    const camX = Math.sin(p * Math.PI * 0.5) * 0.6;
     state.camera.position.x += (camX - state.camera.position.x) * 0.08;
     state.camera.position.y += (camY - state.camera.position.y) * 0.08;
     state.camera.position.z += (camZ - state.camera.position.z) * 0.08;
-    state.camera.lookAt(0, 1.3, 0);
+    state.camera.lookAt(0, 1.5, 0);
 
+    // Rise as you scroll so the ring climbs above the text band (no overlap).
+    g.position.y = 1.2 + p * 1.9;
     // The ring turns (a gentle idle spin + a scroll-scrub) and tilts face-on.
     g.rotation.y = (reduced ? 0 : t * 0.12) + p * Math.PI * 1.1;
     g.rotation.x = -0.55 + smoothstep(0.3, 1, p) * 0.42;
