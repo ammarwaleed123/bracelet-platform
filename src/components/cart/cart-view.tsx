@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
@@ -14,14 +14,52 @@ import {
 } from "@/lib/cart/actions";
 import { Button } from "@/components/ui/button";
 
-export function CartView({
-  lines,
-  subtotalInPiastres,
-}: {
-  lines: CartLine[];
-  subtotalInPiastres: number;
-}) {
-  if (lines.length === 0) {
+type OptimisticAction =
+  | { type: "qty"; itemId: string; quantity: number }
+  | { type: "remove"; itemId: string };
+
+function reduce(lines: CartLine[], action: OptimisticAction): CartLine[] {
+  switch (action.type) {
+    case "qty":
+      return lines.map((l) =>
+        l.itemId === action.itemId
+          ? {
+              ...l,
+              quantity: action.quantity,
+              lineTotalInPiastres: l.unitPriceInPiastres * action.quantity,
+            }
+          : l
+      );
+    case "remove":
+      return lines.filter((l) => l.itemId !== action.itemId);
+  }
+}
+
+export function CartView({ lines }: { lines: CartLine[] }) {
+  const [, startTransition] = useTransition();
+  // Optimistic lines so quantity/remove reflect instantly, before the server
+  // round trip + revalidation lands. Reconciles when fresh props arrive.
+  const [optimisticLines, applyOptimistic] = useOptimistic(lines, reduce);
+
+  const setQty = (itemId: string, quantity: number) =>
+    startTransition(async () => {
+      applyOptimistic({ type: "qty", itemId, quantity });
+      await updateCartItemQuantity(itemId, quantity);
+    });
+
+  const remove = (itemId: string) =>
+    startTransition(async () => {
+      applyOptimistic({ type: "remove", itemId });
+      await removeCartItem(itemId);
+    });
+
+  // Subtotal follows the optimistic lines so the summary updates instantly too.
+  const optimisticSubtotal = optimisticLines.reduce(
+    (sum, l) => sum + l.lineTotalInPiastres,
+    0
+  );
+
+  if (optimisticLines.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border py-20 text-center">
         <p className="font-serif text-xl text-ink">Your cart is empty</p>
@@ -43,8 +81,13 @@ export function CartView({
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
       <ul className="divide-y divide-border">
-        {lines.map((line) => (
-          <CartRow key={line.itemId} line={line} />
+        {optimisticLines.map((line) => (
+          <CartRow
+            key={line.itemId}
+            line={line}
+            onQty={(q) => setQty(line.itemId, q)}
+            onRemove={() => remove(line.itemId)}
+          />
         ))}
       </ul>
 
@@ -54,7 +97,7 @@ export function CartView({
           <div className="mt-4 flex justify-between text-sm">
             <span className="text-ink-soft">Subtotal</span>
             <span className="tabular-nums text-ink">
-              {formatPrice(subtotalInPiastres)}
+              {formatPrice(optimisticSubtotal)}
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-soft">
@@ -69,13 +112,18 @@ export function CartView({
   );
 }
 
-function CartRow({ line }: { line: CartLine }) {
-  const [pending, startTransition] = useTransition();
+function CartRow({
+  line,
+  onQty,
+  onRemove,
+}: {
+  line: CartLine;
+  onQty: (quantity: number) => void;
+  onRemove: () => void;
+}) {
+  const [, startNote] = useTransition();
   const [showNote, setShowNote] = useState(Boolean(line.note));
   const [note, setNote] = useState(line.note ?? "");
-
-  const setQty = (q: number) =>
-    startTransition(() => updateCartItemQuantity(line.itemId, q));
 
   return (
     <li className="flex gap-4 py-5">
@@ -116,8 +164,8 @@ function CartRow({ line }: { line: CartLine }) {
             <button
               type="button"
               aria-label="Decrease quantity"
-              disabled={pending || line.quantity <= 1}
-              onClick={() => setQty(line.quantity - 1)}
+              disabled={line.quantity <= 1}
+              onClick={() => onQty(line.quantity - 1)}
               className="flex size-8 items-center justify-center text-ink-soft transition-colors hover:text-ink disabled:opacity-40"
             >
               <Minus className="size-4" aria-hidden />
@@ -128,8 +176,7 @@ function CartRow({ line }: { line: CartLine }) {
             <button
               type="button"
               aria-label="Increase quantity"
-              disabled={pending}
-              onClick={() => setQty(line.quantity + 1)}
+              onClick={() => onQty(line.quantity + 1)}
               className="flex size-8 items-center justify-center text-ink-soft transition-colors hover:text-ink disabled:opacity-40"
             >
               <Plus className="size-4" aria-hidden />
@@ -147,8 +194,7 @@ function CartRow({ line }: { line: CartLine }) {
           <button
             type="button"
             aria-label="Remove from cart"
-            disabled={pending}
-            onClick={() => startTransition(() => removeCartItem(line.itemId))}
+            onClick={onRemove}
             className="ml-auto text-ink-soft transition-colors hover:text-destructive"
           >
             <Trash2 className="size-4" aria-hidden />
@@ -160,7 +206,7 @@ function CartRow({ line }: { line: CartLine }) {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             onBlur={() =>
-              startTransition(() => updateCartItemNote(line.itemId, note))
+              startNote(() => updateCartItemNote(line.itemId, note))
             }
             rows={2}
             maxLength={240}

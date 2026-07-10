@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
@@ -14,6 +14,7 @@ import {
   orderEvents,
   orderItems,
   orders,
+  profiles,
 } from "@/lib/db/schema";
 import type { DesignComponent } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/guards";
@@ -41,6 +42,8 @@ const checkoutSchema = z.object({
   // Optional pinned GPS location (from the browser) to help the courier.
   geoLat: z.number().min(-90).max(90).optional(),
   geoLng: z.number().min(-180).max(180).optional(),
+  // Apply the signed-in customer's full store credit (to the product cost).
+  useStoreCredit: z.boolean().optional(),
 });
 
 export type CheckoutInput = z.input<typeof checkoutSchema>;
@@ -158,7 +161,9 @@ export async function placeOrder(
     discountCodeId = res.codeId;
   }
 
-  const total = subtotal + shipping.feeInPiastres - discountInPiastres;
+  // Store credit applies to the discounted product cost only (never shipping),
+  // and the exact amount is decided + deducted inside the transaction below.
+  const productsCost = Math.max(0, subtotal - discountInPiastres);
 
   // Aggregate component demand across all lines for a stock check.
   const baseNeed = new Map<string, number>();
@@ -184,6 +189,35 @@ export async function placeOrder(
       await decrementStock(tx, beads, beadNeed);
       await decrementStock(tx, charms, charmNeed);
 
+      // --- Apply store credit (signed-in only), capped at the product cost ---
+      let storeCreditApplied = 0;
+      if (d.useStoreCredit && user) {
+        const [p] = await tx
+          .select({ credit: profiles.storeCreditInPiastres })
+          .from(profiles)
+          .where(eq(profiles.id, user.id))
+          .limit(1);
+        const applied = Math.min(p?.credit ?? 0, productsCost);
+        if (applied > 0) {
+          // Conditional deduct guards against a concurrent double-spend.
+          const deducted = await tx
+            .update(profiles)
+            .set({
+              storeCreditInPiastres: sql`${profiles.storeCreditInPiastres} - ${applied}`,
+            })
+            .where(
+              and(
+                eq(profiles.id, user.id),
+                gte(profiles.storeCreditInPiastres, applied)
+              )
+            )
+            .returning({ id: profiles.id });
+          if (deducted.length > 0) storeCreditApplied = applied;
+        }
+      }
+      const total =
+        subtotal + shipping.feeInPiastres - discountInPiastres - storeCreditApplied;
+
       // --- Human-friendly order number ---
       const seqRows = (await tx.execute(
         sql`select nextval('order_number_seq') as n`
@@ -202,6 +236,7 @@ export async function placeOrder(
           subtotalInPiastres: subtotal,
           shippingInPiastres: shipping.feeInPiastres,
           discountInPiastres,
+          storeCreditAppliedInPiastres: storeCreditApplied,
           totalInPiastres: total,
           customerName: d.customerName,
           customerPhone: d.customerPhone,

@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/schema";
 import type { DesignComponent, OrderItemDesignSnapshot } from "@/lib/db/schema";
 import { settleCommissions } from "@/lib/commerce/commissions";
+import { settleStoreCredit } from "@/lib/commerce/store-credit";
 
 const STATUSES = [
   "pending_confirmation",
@@ -82,6 +83,8 @@ export async function setOrderStatus(
 
   // Accrue on delivered+paid, reverse on cancelled (idempotent).
   await settleCommissions(order.id);
+  // Refund any store credit spent, if the order was cancelled (idempotent).
+  await settleStoreCredit(order.id);
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderNumber}`);
