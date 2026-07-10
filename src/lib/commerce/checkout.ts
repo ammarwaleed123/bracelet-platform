@@ -38,6 +38,9 @@ const checkoutSchema = z.object({
   area: z.string().trim().max(80).optional().or(z.literal("")),
   landmark: z.string().trim().max(120).optional().or(z.literal("")),
   discountCode: z.string().trim().max(40).optional().or(z.literal("")),
+  // Optional pinned GPS location (from the browser) to help the courier.
+  geoLat: z.number().min(-90).max(90).optional(),
+  geoLng: z.number().min(-180).max(180).optional(),
 });
 
 export type CheckoutInput = z.input<typeof checkoutSchema>;
@@ -208,6 +211,10 @@ export async function placeOrder(
             area: d.area || undefined,
             governorate: d.governorate,
             landmark: d.landmark || undefined,
+            geo:
+              d.geoLat != null && d.geoLng != null
+                ? { lat: d.geoLat, lng: d.geoLng }
+                : undefined,
           },
           governorate: d.governorate,
           discountCodeId,

@@ -53,16 +53,17 @@ export function DesignCard({
           <span className="block tabular-nums text-sm text-ink">
             {formatPrice(item.priceInPiastres)}
           </span>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Button asChild size="sm" variant="outline" className="flex-1">
+          <div className="mt-2 space-y-2">
+            <Button asChild size="sm" variant="outline" className="w-full">
               <Link href={`/studio/${item.publicId}`}>Customize</Link>
             </Button>
             <AddToCartButton
               designId={item.id}
               initialQuantity={cartQuantity}
               size="sm"
-              label="Add"
+              label="Add to cart"
               showViewCart={false}
+              fullWidth
             />
           </div>
         </div>

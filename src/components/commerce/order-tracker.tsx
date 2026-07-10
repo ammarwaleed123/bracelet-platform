@@ -109,6 +109,16 @@ export function OrderTracker({
             .join(", ")}
           {addr.landmark ? ` (near ${addr.landmark})` : ""}
         </p>
+        {addr.geo && (
+          <a
+            href={`https://www.google.com/maps?q=${addr.geo.lat},${addr.geo.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-xs text-gold-strong underline underline-offset-2"
+          >
+            View pinned location on map
+          </a>
+        )}
         <p className="mt-2 text-xs text-ink-soft">
           Payment: Cash on Delivery ·{" "}
           {order.paymentStatus === "paid" ? "Paid" : "Due on delivery"}

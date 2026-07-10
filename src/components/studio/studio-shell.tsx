@@ -165,11 +165,13 @@ export function StudioShell({
       {/* Control panel — flows as normal page content on mobile (page scrolls
           under the pinned stage); a fixed-width, internally-scrolling rail on
           desktop. */}
-      <aside className="w-full bg-background lg:flex lg:h-full lg:w-[380px] lg:flex-col lg:border-l lg:border-border">
+      <aside className="w-full bg-background pb-24 lg:flex lg:h-full lg:w-[380px] lg:flex-col lg:border-l lg:border-border lg:pb-0">
         <div className="space-y-5 p-5 lg:shrink-0">
           <div className="flex items-center justify-between gap-3">
             <p className="font-serif text-lg text-ink">Design</p>
-            <div className="flex items-center gap-2">
+            {/* Desktop: actions live in the always-visible rail header. On mobile
+                they move to a fixed bottom bar (below) so they never scroll away. */}
+            <div className="hidden items-center gap-2 lg:flex">
               <SaveDesign catalog={catalog} />
               <AddToCartStudio catalog={catalog} />
             </div>
@@ -181,6 +183,16 @@ export function StudioShell({
           <Palette catalog={catalog} />
         </div>
       </aside>
+
+      {/* Mobile-only fixed action bar — Save + Add to cart always reachable. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-border bg-background/95 p-3 backdrop-blur lg:hidden">
+        <div className="flex-1 [&>button]:w-full">
+          <SaveDesign catalog={catalog} />
+        </div>
+        <div className="flex-1 [&>button]:w-full">
+          <AddToCartStudio catalog={catalog} />
+        </div>
+      </div>
     </div>
   );
 }
