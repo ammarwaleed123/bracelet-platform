@@ -91,7 +91,7 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
                 <Menu
                   aria-hidden
                   className={cn(
-                    "absolute inset-0 transition-all duration-200 ease-[var(--ease-out-soft)] motion-reduce:transition-none",
+                    "absolute inset-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
                     menuOpen
                       ? "rotate-90 scale-50 opacity-0"
                       : "rotate-0 scale-100 opacity-100"
@@ -100,7 +100,7 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
                 <X
                   aria-hidden
                   className={cn(
-                    "absolute inset-0 transition-all duration-200 ease-[var(--ease-out-soft)] motion-reduce:transition-none",
+                    "absolute inset-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
                     menuOpen
                       ? "rotate-0 scale-100 opacity-100"
                       : "-rotate-90 scale-50 opacity-0"
@@ -127,10 +127,10 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
         id="mobile-menu"
         aria-hidden={!menuOpen}
         className={cn(
-          "fixed inset-x-0 bottom-0 top-16 z-50 bg-cream transition-all duration-200 ease-[var(--ease-out-soft)] md:hidden motion-reduce:transition-none",
+          "fixed inset-x-0 bottom-0 top-16 z-50 bg-cream transition-[opacity,visibility] ease-out md:hidden motion-reduce:transition-none",
           menuOpen
-            ? "translate-y-0 opacity-100"
-            : "invisible -translate-y-2 opacity-0 pointer-events-none"
+            ? "opacity-100 duration-150"
+            : "invisible opacity-0 pointer-events-none duration-300 delay-150"
         )}
       >
         <Container className="flex h-full flex-col py-8">
@@ -140,10 +140,12 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
                 key={link.href}
                 href={link.href}
                 tabIndex={menuOpen ? undefined : -1}
-                style={{ transitionDelay: menuOpen ? `${i * 45}ms` : "0ms" }}
+                style={{ transitionDelay: menuOpen ? `${80 + i * 65}ms` : "0ms" }}
                 className={cn(
-                  "rounded-lg px-3 py-3 font-serif text-2xl text-ink transition-[color,transform,opacity] duration-200 ease-[var(--ease-out-soft)] hover:bg-sand motion-reduce:translate-y-0 motion-reduce:transition-none",
-                  menuOpen ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
+                  "rounded-lg px-3 py-3 font-serif text-2xl text-ink transition-[color,transform,opacity,filter] ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-sand hover:text-gold motion-reduce:!translate-y-0 motion-reduce:!blur-0 motion-reduce:transition-none",
+                  menuOpen
+                    ? "translate-y-0 opacity-100 blur-0 duration-[550ms]"
+                    : "translate-y-5 opacity-0 blur-[5px] duration-200",
                   isActive(link.href) && "text-gold"
                 )}
               >
@@ -153,11 +155,13 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
           </nav>
           <div
             style={{
-              transitionDelay: menuOpen ? `${primaryNav.length * 45}ms` : "0ms",
+              transitionDelay: menuOpen ? `${80 + primaryNav.length * 65}ms` : "0ms",
             }}
             className={cn(
-              "mt-auto flex flex-col gap-3 pt-8 transition-[transform,opacity] duration-200 ease-[var(--ease-out-soft)] motion-reduce:translate-y-0 motion-reduce:transition-none",
-              menuOpen ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+              "mt-auto flex flex-col gap-3 pt-8 transition-[transform,opacity,filter] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:!translate-y-0 motion-reduce:!blur-0 motion-reduce:transition-none",
+              menuOpen
+                ? "translate-y-0 opacity-100 blur-0 duration-[550ms]"
+                : "translate-y-5 opacity-0 blur-[5px] duration-200"
             )}
           >
             <Button asChild size="lg">
