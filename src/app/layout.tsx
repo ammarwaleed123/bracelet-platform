@@ -54,7 +54,9 @@ export default async function RootLayout({
   const { count: cartCount, subtotalInPiastres } = await getCartSummary();
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
-      <body className="flex min-h-dvh flex-col antialiased">
+      {/* suppressHydrationWarning: browser extensions inject attributes on
+          <body> (e.g. password managers) before React hydrates — harmless. */}
+      <body className="flex min-h-dvh flex-col antialiased" suppressHydrationWarning>
         <SiteHeader cartCount={cartCount} />
         <main id="main" className="flex-1">
           {children}
