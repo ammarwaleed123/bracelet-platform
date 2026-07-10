@@ -1,24 +1,23 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Hammer, Palette, Truck } from "lucide-react";
 
 import { home } from "@/content/site";
-import { formatPrice } from "@/lib/utils";
 import { getGalleryDesigns } from "@/lib/designs/queries";
+import { getHeroBeads } from "@/lib/catalog/hero-beads";
 import type { GalleryItem } from "@/lib/designs/types";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/layout/container";
 import { DesignCard } from "@/components/gallery/design-card";
+import { HeroBracelet } from "@/components/home/hero-bracelet";
 
 const VALUE_ICONS = [Palette, Hammer, Truck];
 
 export default async function HomePage() {
-  const { items: featured } = await getGalleryDesigns({
-    sort: "most_liked",
-    limit: 5,
-  });
-  const hero = featured[0] ?? null;
-  const grid = featured.slice(1, 5);
+  const [{ items: featured }, heroBeads] = await Promise.all([
+    getGalleryDesigns({ sort: "most_liked", limit: 4 }),
+    getHeroBeads(14),
+  ]);
+  const grid = featured.slice(0, 4);
 
   return (
     <div className="flex flex-col">
@@ -47,34 +46,11 @@ export default async function HomePage() {
           </p>
         </div>
 
-        {/* Hero visual — the most-loved community design, or a soft fallback. */}
+        {/* Hero visual — real catalog beads assemble into a bracelet on scroll. */}
         <div className="relative">
-          <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-gold-tint/40 blur-2xl" />
-          {hero ? (
-            <Link
-              href={`/design/${hero.publicId}`}
-              className="group block overflow-hidden rounded-3xl border border-border bg-linen shadow-lift"
-            >
-              <div className="relative aspect-square">
-                {hero.thumbnailUrl && (
-                  <Image
-                    src={hero.thumbnailUrl}
-                    alt={hero.name}
-                    fill
-                    unoptimized
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                  />
-                )}
-              </div>
-              <div className="flex items-center justify-between gap-3 px-5 py-4">
-                <span className="font-serif text-lg text-ink">{hero.name}</span>
-                <span className="tabular-nums text-ink-soft">
-                  {formatPrice(hero.priceInPiastres)}
-                </span>
-              </div>
-            </Link>
+          <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gold-tint/40 blur-3xl" />
+          {heroBeads.length > 0 ? (
+            <HeroBracelet beads={heroBeads} />
           ) : (
             <div className="flex aspect-square items-center justify-center rounded-3xl border border-border bg-gradient-to-b from-linen to-sand shadow-soft">
               <p className="max-w-xs px-6 text-center text-sm text-ink-soft">
