@@ -63,6 +63,31 @@ export const moderationStatus = pgEnum("moderation_status", [
   "rejected",
 ]);
 
+/* ----- commerce enums (milestone 1.5) ----- */
+
+export const orderStatus = pgEnum("order_status", [
+  "pending_confirmation",
+  "confirmed",
+  "crafting",
+  "shipped",
+  "delivered",
+  "cancelled",
+]);
+
+export const paymentMethod = pgEnum("payment_method", [
+  "cod",
+  "paymob_card",
+  "paymob_wallet",
+]);
+
+export const paymentStatus = pgEnum("payment_status", [
+  "unpaid",
+  "paid",
+  "refunded",
+]);
+
+export const discountType = pgEnum("discount_type", ["percent", "fixed"]);
+
 /* --------------------------------------------------------- json shapes -- */
 
 /** Params the studio uses to render a base (torus/cord path + material). */
@@ -92,6 +117,26 @@ export type DesignComponent = {
   slot: number;
   kind: "bead" | "charm";
   refId: string;
+};
+
+/** Delivery address captured at checkout (stored on the order as jsonb). */
+export type ShippingAddress = {
+  line1: string;
+  line2?: string;
+  /** District / area within the governorate. */
+  area?: string;
+  governorate: string;
+  landmark?: string;
+};
+
+/**
+ * Immutable snapshot of a purchased design, stored on the order item so orders
+ * survive later edits/deletes of the design or catalog (spec §3).
+ */
+export type OrderItemDesignSnapshot = {
+  baseId: string | null;
+  sizeCm: string;
+  components: DesignComponent[];
 };
 
 /* ------------------------------------------------------------ profiles -- */
@@ -333,6 +378,151 @@ export const collectionDesigns = pgTable(
   (t) => [primaryKey({ columns: [t.collectionId, t.designId] })]
 );
 
+/* ------------------------------------------------------- shipping zones -- */
+
+/** Governorate → flat COD shipping fee. Seeded with editable placeholders. */
+export const shippingZones = pgTable("shipping_zones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  /** Governorate names this zone covers (matched to the checkout selector). */
+  governorates: text("governorates").array().notNull().default([]),
+  feeInPiastres: integer("fee_in_piastres").notNull(),
+  estimatedDays: text("estimated_days"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+/* -------------------------------------------------------- discount codes -- */
+
+export const discountCodes = pgTable("discount_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull().unique(),
+  type: discountType("type").notNull(),
+  /** For `percent`: whole percent (e.g. 10). For `fixed`: piastres off. */
+  value: integer("value").notNull(),
+  minSubtotalInPiastres: integer("min_subtotal_in_piastres")
+    .notNull()
+    .default(0),
+  /** Null = unlimited uses. */
+  maxUses: integer("max_uses"),
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/* ---------------------------------------------------------------- carts -- */
+
+/** One open cart per user (or per guest session token). */
+export const carts = pgTable("carts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => profiles.id, {
+    onDelete: "cascade",
+  }),
+  /** Opaque token stored in a cookie for guest carts. */
+  sessionToken: text("session_token").unique(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const cartItems = pgTable("cart_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  cartId: uuid("cart_id")
+    .notNull()
+    .references(() => carts.id, { onDelete: "cascade" }),
+  designId: uuid("design_id")
+    .notNull()
+    .references(() => designs.id, { onDelete: "cascade" }),
+  quantity: integer("quantity").notNull().default(1),
+  /** Optional per-item gift message. */
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/* --------------------------------------------------------------- orders -- */
+
+export const orders = pgTable("orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Human-friendly, e.g. BR-2026-000123. Primary tracking identifier. */
+  orderNumber: text("order_number").notNull().unique(),
+  userId: uuid("user_id").references(() => profiles.id, {
+    onDelete: "set null",
+  }),
+  status: orderStatus("status").notNull().default("pending_confirmation"),
+  paymentMethod: paymentMethod("payment_method").notNull().default("cod"),
+  paymentStatus: paymentStatus("payment_status").notNull().default("unpaid"),
+  subtotalInPiastres: integer("subtotal_in_piastres").notNull(),
+  shippingInPiastres: integer("shipping_in_piastres").notNull().default(0),
+  discountInPiastres: integer("discount_in_piastres").notNull().default(0),
+  totalInPiastres: integer("total_in_piastres").notNull(),
+  customerName: text("customer_name").notNull(),
+  /** Required — the primary contact channel in Egypt; gates guest tracking. */
+  customerPhone: text("customer_phone").notNull(),
+  customerEmail: text("customer_email"),
+  shippingAddressJson: jsonb("shipping_address_json")
+    .$type<ShippingAddress>()
+    .notNull(),
+  governorate: text("governorate").notNull(),
+  discountCodeId: uuid("discount_code_id").references(() => discountCodes.id, {
+    onDelete: "set null",
+  }),
+  placedAt: timestamp("placed_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Line item snapshot — immutable once placed. Stores the design's name, price,
+ * thumbnail and full component snapshot at purchase time. `creatorId` is the
+ * design owner at purchase (null for brand/guest designs); it powers the
+ * exact-purchase commission wired after commerce works.
+ */
+export const orderItems = pgTable("order_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  designId: uuid("design_id").references(() => designs.id, {
+    onDelete: "set null",
+  }),
+  designName: text("design_name").notNull(),
+  designThumbnailUrl: text("design_thumbnail_url"),
+  designSnapshotJson: jsonb("design_snapshot_json")
+    .$type<OrderItemDesignSnapshot>()
+    .notNull(),
+  unitPriceInPiastres: integer("unit_price_in_piastres").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  note: text("note"),
+  /** Design owner at purchase time — the commission earner (exact buys only). */
+  creatorId: uuid("creator_id").references(() => profiles.id, {
+    onDelete: "set null",
+  }),
+});
+
+/** Status timeline entries powering the tracking page (spec §3, §8). */
+export const orderEvents = pgTable("order_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  status: orderStatus("status").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 /* ----------------------------------------------------------- relations -- */
 
 export const beadsRelations = relations(beads, ({ many }) => ({
@@ -404,6 +594,56 @@ export const collectionDesignsRelations = relations(
   })
 );
 
+export const cartsRelations = relations(carts, ({ many }) => ({
+  items: many(cartItems),
+}));
+
+export const cartItemsRelations = relations(cartItems, ({ one }) => ({
+  cart: one(carts, {
+    fields: [cartItems.cartId],
+    references: [carts.id],
+  }),
+  design: one(designs, {
+    fields: [cartItems.designId],
+    references: [designs.id],
+  }),
+}));
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  user: one(profiles, {
+    fields: [orders.userId],
+    references: [profiles.id],
+  }),
+  discountCode: one(discountCodes, {
+    fields: [orders.discountCodeId],
+    references: [discountCodes.id],
+  }),
+  items: many(orderItems),
+  events: many(orderEvents),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.id],
+  }),
+  design: one(designs, {
+    fields: [orderItems.designId],
+    references: [designs.id],
+  }),
+  creator: one(profiles, {
+    fields: [orderItems.creatorId],
+    references: [profiles.id],
+  }),
+}));
+
+export const orderEventsRelations = relations(orderEvents, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderEvents.orderId],
+    references: [orders.id],
+  }),
+}));
+
 /* --------------------------------------------------------------- types -- */
 
 export type Profile = typeof profiles.$inferSelect;
@@ -418,3 +658,14 @@ export type NewCharm = typeof charms.$inferInsert;
 export type Design = typeof designs.$inferSelect;
 export type NewDesign = typeof designs.$inferInsert;
 export type Collection = typeof collections.$inferSelect;
+export type ShippingZone = typeof shippingZones.$inferSelect;
+export type NewShippingZone = typeof shippingZones.$inferInsert;
+export type DiscountCode = typeof discountCodes.$inferSelect;
+export type NewDiscountCode = typeof discountCodes.$inferInsert;
+export type Cart = typeof carts.$inferSelect;
+export type CartItem = typeof cartItems.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type NewOrder = typeof orders.$inferInsert;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type NewOrderItem = typeof orderItems.$inferInsert;
+export type OrderEvent = typeof orderEvents.$inferSelect;
