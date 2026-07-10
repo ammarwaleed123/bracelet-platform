@@ -470,6 +470,14 @@ export const orders = pgTable("orders", {
   subtotalInPiastres: integer("subtotal_in_piastres").notNull(),
   shippingInPiastres: integer("shipping_in_piastres").notNull().default(0),
   discountInPiastres: integer("discount_in_piastres").notNull().default(0),
+  /** Store credit spent on this order (applies to the discounted product cost
+   *  only — never shipping). Refunded to the buyer's balance if cancelled. */
+  storeCreditAppliedInPiastres: integer("store_credit_applied_in_piastres")
+    .notNull()
+    .default(0),
+  storeCreditRefundedAt: timestamp("store_credit_refunded_at", {
+    withTimezone: true,
+  }),
   totalInPiastres: integer("total_in_piastres").notNull(),
   customerName: text("customer_name").notNull(),
   /** Required — the primary contact channel in Egypt; gates guest tracking. */

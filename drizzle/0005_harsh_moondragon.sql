@@ -1,0 +1,2 @@
+ALTER TABLE "orders" ADD COLUMN "store_credit_applied_in_piastres" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "orders" ADD COLUMN "store_credit_refunded_at" timestamp with time zone;

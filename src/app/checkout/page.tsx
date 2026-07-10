@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { eq } from "drizzle-orm";
+
+import { db } from "@/lib/db";
+import { profiles } from "@/lib/db/schema";
 import { getCartLines } from "@/lib/cart/cart";
 import { getActiveShippingZones } from "@/lib/commerce/shipping";
 import { getCurrentUser } from "@/lib/auth/guards";
@@ -40,6 +44,17 @@ export default async function CheckoutPage() {
     email: user?.email ?? "",
   };
 
+  // Signed-in customers can spend their store credit (on the product cost).
+  let storeCredit = 0;
+  if (user) {
+    const [p] = await db
+      .select({ credit: profiles.storeCreditInPiastres })
+      .from(profiles)
+      .where(eq(profiles.id, user.id))
+      .limit(1);
+    storeCredit = p?.credit ?? 0;
+  }
+
   return (
     <Container className="py-12">
       <h1 className="mb-8 font-serif text-4xl text-ink">Checkout</h1>
@@ -48,6 +63,7 @@ export default async function CheckoutPage() {
         subtotalInPiastres={subtotal}
         governorates={governorates}
         defaults={defaults}
+        storeCredit={storeCredit}
       />
     </Container>
   );

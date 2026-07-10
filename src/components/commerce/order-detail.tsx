@@ -53,6 +53,12 @@ export function OrderTotals({ order }: { order: Order }) {
           value={`− ${formatPrice(order.discountInPiastres)}`}
         />
       )}
+      {order.storeCreditAppliedInPiastres > 0 && (
+        <Row
+          label="Store credit"
+          value={`− ${formatPrice(order.storeCreditAppliedInPiastres)}`}
+        />
+      )}
       <div className="flex justify-between border-t border-border pt-3 text-base">
         <dt className="font-medium text-ink">Total</dt>
         <dd className="font-serif tabular-nums text-ink">

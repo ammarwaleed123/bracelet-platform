@@ -18,14 +18,17 @@ export function CheckoutForm({
   subtotalInPiastres,
   governorates,
   defaults,
+  storeCredit,
 }: {
   lines: CartLine[];
   subtotalInPiastres: number;
   governorates: GovernorateOption[];
   defaults: { name: string; email: string };
+  storeCredit: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [useStoreCredit, setUseStoreCredit] = useState(false);
 
   const [form, setForm] = useState({
     customerName: defaults.name,
@@ -58,7 +61,11 @@ export function CheckoutForm({
   );
   const shipping = selectedGov?.feeInPiastres ?? 0;
   const discountAmount = discount?.amount ?? 0;
-  const total = subtotalInPiastres + shipping - discountAmount;
+  // Store credit only offsets the discounted product cost — never shipping.
+  const productsCost = Math.max(0, subtotalInPiastres - discountAmount);
+  const creditApplied =
+    useStoreCredit && storeCredit > 0 ? Math.min(storeCredit, productsCost) : 0;
+  const total = subtotalInPiastres + shipping - discountAmount - creditApplied;
 
   const applyCode = () => {
     if (!form.discountCode.trim()) return;
@@ -102,6 +109,7 @@ export function CheckoutForm({
         ...form,
         geoLat: geo?.lat,
         geoLng: geo?.lng,
+        useStoreCredit,
       });
       if (res.ok) {
         router.push(`/checkout/confirmation/${res.orderNumber}`);
@@ -322,6 +330,31 @@ export function CheckoutForm({
             )}
           </div>
 
+          {/* Store credit */}
+          {storeCredit > 0 && (
+            <div className="mt-5 border-t border-border pt-5">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={useStoreCredit}
+                  onChange={(e) => setUseStoreCredit(e.target.checked)}
+                  className="mt-0.5 size-4 accent-gold"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-ink">
+                    Use my store credit
+                  </span>{" "}
+                  <span className="text-ink-soft">
+                    ({formatPrice(storeCredit)} available)
+                  </span>
+                  <span className="mt-0.5 block text-xs text-ink-soft">
+                    Applies to your products; shipping is still paid on delivery.
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
+
           {/* Totals */}
           <dl className="mt-5 space-y-2 border-t border-border pt-5 text-sm">
             <Row label="Subtotal" value={formatPrice(subtotalInPiastres)} />
@@ -343,6 +376,12 @@ export function CheckoutForm({
               <Row
                 label="Discount"
                 value={`− ${formatPrice(discountAmount)}`}
+              />
+            )}
+            {creditApplied > 0 && (
+              <Row
+                label="Store credit"
+                value={`− ${formatPrice(creditApplied)}`}
               />
             )}
             <div className="flex justify-between border-t border-border pt-3 text-base">
