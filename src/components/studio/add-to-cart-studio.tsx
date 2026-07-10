@@ -9,8 +9,7 @@ import { useStudioStore } from "@/lib/studio/store";
 import { indexCatalog, resolveComponents } from "@/lib/studio/derive";
 import { suggestDesignName } from "@/lib/studio/naming";
 import { captureThumbnail } from "@/lib/studio/capture";
-import { saveDesign } from "@/lib/designs/actions";
-import { addToCart } from "@/lib/cart/actions";
+import { addStudioDesignToCart } from "@/lib/cart/actions";
 import type { StudioCatalog } from "@/lib/studio/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +53,6 @@ function AddToCartDialog({
   const baseId = useStudioStore((s) => s.baseId);
   const sizeCm = useStudioStore((s) => s.sizeCm);
   const components = useStudioStore((s) => s.components);
-  const savedDesignId = useStudioStore((s) => s.savedDesignId);
   const forkedFromId = useStudioStore((s) => s.forkedFromId);
   const existingName = useStudioStore((s) => s.designName);
   const setSaveMeta = useStudioStore((s) => s.setSaveMeta);
@@ -72,28 +70,20 @@ function AddToCartDialog({
   const addExisting = () => {
     setError(null);
     startTransition(async () => {
-      // Persist any latest edits before adding, so the cart matches the studio.
-      const result = await saveDesign({
-        designId: savedDesignId ?? undefined,
+      // Merges into an existing cart line if the same bracelet is already there.
+      const res = await addStudioDesignToCart({
         forkedFromDesignId: forkedFromId ?? undefined,
         name,
         baseId,
         sizeCm,
         components: components.map((c) => ({ kind: c.kind, refId: c.refId })),
         thumbnailDataUrl: captureThumbnail() ?? undefined,
-        // Don't file it under "Your designs" — this only backs the cart line.
-        saveToAccount: false,
       });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setSaveMeta({ savedDesignId: result.id, designName: name });
-      const res = await addToCart(result.id);
       if (!res.ok) {
         setError(res.error);
         return;
       }
+      setSaveMeta({ savedDesignId: res.id, designName: name });
       setAdded(true);
       router.refresh();
     });
