@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import type { User } from "@supabase/supabase-js";
@@ -8,14 +9,25 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
 
-/** The current Supabase auth user, or null. */
-export async function getCurrentUser(): Promise<User | null> {
+/**
+ * The current Supabase auth user, or null.
+ *
+ * Wrapped in React `cache()` so every caller in a single request/render shares
+ * ONE `getUser()` result. `getUser()` is a network round trip to Supabase Auth,
+ * and this function is reached many times per page (the cart badge in the root
+ * layout, route guards, and the page's own logic). Without this, each call was
+ * an independent remote call, stacking hundreds of ms of latency onto every
+ * navigation. The cache is per-request, so it never leaks between users.
+ */
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<
+  User | null
+> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
 
 /** Require a signed-in user; redirect to sign-in otherwise. */
 export async function requireUser(): Promise<User> {

@@ -11,12 +11,11 @@ export const dynamic = "force-dynamic";
 
 export default async function CartPage() {
   const lines = await getCartLines();
-  const subtotal = lines.reduce((sum, l) => sum + l.lineTotalInPiastres, 0);
 
   return (
     <Container className="py-12">
       <h1 className="mb-8 font-serif text-4xl text-ink">Your cart</h1>
-      <CartView lines={lines} subtotalInPiastres={subtotal} />
+      <CartView lines={lines} />
     </Container>
   );
 }
