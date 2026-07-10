@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, ShoppingBag } from "lucide-react";
@@ -35,18 +35,26 @@ export function AddToCartButton({
   const [qty, setQty] = useState(initialQuantity);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Synchronous source of truth so rapid clicks accumulate correctly, plus a
+  // request sequence so out-of-order server responses can't flip the count.
+  const qtyRef = useRef(initialQuantity);
+  const seqRef = useRef(0);
 
-  const change = (next: number) => {
-    const prev = qty;
-    setQty(Math.max(0, next)); // optimistic
+  const change = (delta: number) => {
+    const next = Math.max(0, qtyRef.current + delta);
+    if (next === qtyRef.current) return;
+    qtyRef.current = next;
+    setQty(next); // optimistic
     setError(null);
+    const seq = ++seqRef.current;
     startTransition(async () => {
       const res = await setDesignQuantity(designId, next);
+      if (seq !== seqRef.current) return; // superseded by a newer click
       if (res.ok) {
+        qtyRef.current = res.quantity;
         setQty(res.quantity);
         router.refresh(); // sync header badge / cart page
       } else {
-        setQty(prev);
         setError(res.error);
       }
     });
@@ -72,7 +80,7 @@ export function AddToCartButton({
           <button
             type="button"
             aria-label="Decrease quantity"
-            onClick={() => change(qty - 1)}
+            onClick={() => change(-1)}
             className={cn(
               "flex items-center justify-center text-ink-soft transition-colors hover:text-ink",
               compact ? "size-8" : "size-10"
@@ -91,7 +99,7 @@ export function AddToCartButton({
           <button
             type="button"
             aria-label="Increase quantity"
-            onClick={() => change(qty + 1)}
+            onClick={() => change(1)}
             className={cn(
               "flex items-center justify-center text-ink-soft transition-colors hover:text-ink",
               compact ? "size-8" : "size-10"

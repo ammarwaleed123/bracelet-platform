@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Focus, Redo2, Undo2 } from "lucide-react";
+import { Eraser, Focus, Redo2, Undo2 } from "lucide-react";
 
 import { cn, formatPrice } from "@/lib/utils";
 import {
@@ -129,8 +129,10 @@ export function PriceChip({ catalog }: { catalog: StudioCatalog }) {
 export function Toolbar() {
   const canUndo = useStudioStore((s) => s.past.length > 0);
   const canRedo = useStudioStore((s) => s.future.length > 0);
+  const hasComponents = useStudioStore((s) => s.components.length > 0);
   const undo = useStudioStore((s) => s.undo);
   const redo = useStudioStore((s) => s.redo);
+  const clearAll = useStudioStore((s) => s.clearAll);
   const requestCameraReset = useStudioStore((s) => s.requestCameraReset);
 
   return (
@@ -164,22 +166,20 @@ export function Toolbar() {
       >
         <Focus aria-hidden />
       </Button>
-    </div>
-  );
-}
 
-/** Text button to clear the whole design, shown in the control panel. */
-export function ClearAllButton() {
-  const hasComponents = useStudioStore((s) => s.components.length > 0);
-  const clearAll = useStudioStore((s) => s.clearAll);
-  if (!hasComponents) return null;
-  return (
-    <button
-      type="button"
-      onClick={clearAll}
-      className="text-xs text-ink-soft underline-offset-2 transition-colors hover:text-destructive hover:underline"
-    >
-      Start over
-    </button>
+      <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={clearAll}
+        disabled={!hasComponents}
+        aria-label="Start over"
+        title="Start over — clear the bracelet"
+        className="text-ink-soft hover:text-destructive"
+      >
+        <Eraser aria-hidden />
+      </Button>
+    </div>
   );
 }
