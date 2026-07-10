@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Container } from "@/components/layout/container";
 import { DesignCard } from "@/components/gallery/design-card";
 import { HeroBracelet } from "@/components/home/hero-bracelet";
-import { ParallaxBeads } from "@/components/home/parallax-beads";
+import { Reveal } from "@/components/home/reveal";
 
 const VALUE_ICONS = [Palette, Hammer, Truck];
 
@@ -23,10 +23,9 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col">
       {/* ---------------------------------------------------------- hero -- */}
-      <section className="relative overflow-hidden">
-        <ParallaxBeads />
+      <section className="relative">
         <Container className="grid items-center gap-12 py-16 sm:py-24 lg:grid-cols-2 lg:gap-16">
-          <div>
+          <Reveal>
             <p className="label-caps">{home.eyebrow}</p>
             <h1 className="mt-5 text-balance font-serif text-5xl leading-[1.05] text-ink sm:text-6xl">
               {home.headline}
@@ -47,10 +46,10 @@ export default async function HomePage() {
             <p className="mt-6 text-sm text-ink-soft">
               Handmade in Egypt · Cash on delivery nationwide
             </p>
-          </div>
+          </Reveal>
 
           {/* Gently rotating 3D bracelet of real catalog beads. */}
-          <div className="relative">
+          <Reveal delay={120} className="relative">
             <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gold-tint/40 blur-3xl" />
             {heroBeads.length > 0 ? (
               <HeroBracelet beads={heroBeads} />
@@ -61,7 +60,7 @@ export default async function HomePage() {
                 </p>
               </div>
             )}
-          </div>
+          </Reveal>
         </Container>
       </section>
 
@@ -71,7 +70,7 @@ export default async function HomePage() {
           {home.valueProps.map((prop, i) => {
             const Icon = VALUE_ICONS[i] ?? Palette;
             return (
-              <div key={prop.title}>
+              <Reveal key={prop.title} delay={i * 90}>
                 <span className="flex size-11 items-center justify-center rounded-full bg-gold-tint text-gold-strong">
                   <Icon className="size-5" aria-hidden />
                 </span>
@@ -81,7 +80,7 @@ export default async function HomePage() {
                 <p className="mt-2 text-sm leading-relaxed text-ink-soft">
                   {prop.body}
                 </p>
-              </div>
+              </Reveal>
             );
           })}
         </Container>
@@ -89,21 +88,25 @@ export default async function HomePage() {
 
       {/* --------------------------------------------------- how it works -- */}
       <Container className="py-20">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <p className="label-caps">{home.steps.eyebrow}</p>
           <h2 className="mt-3 font-serif text-4xl text-ink">
             {home.steps.title}
           </h2>
-        </div>
+        </Reveal>
         <div className="mt-12 grid gap-8 sm:grid-cols-3">
-          {home.steps.items.map((step) => (
-            <div key={step.n} className="rounded-2xl border border-border bg-card p-7">
+          {home.steps.items.map((step, i) => (
+            <Reveal
+              key={step.n}
+              delay={i * 110}
+              className="rounded-2xl border border-border bg-card p-7"
+            >
               <span className="font-serif text-3xl text-gold">{step.n}</span>
               <h3 className="mt-3 font-serif text-xl text-ink">{step.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-soft">
                 {step.body}
               </p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </Container>
@@ -112,7 +115,7 @@ export default async function HomePage() {
       {grid.length > 0 && (
         <div className="border-t border-border bg-linen/50">
           <Container className="py-20">
-            <div className="flex flex-wrap items-end justify-between gap-4">
+            <Reveal className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="label-caps">{home.featured.eyebrow}</p>
                 <h2 className="mt-3 font-serif text-4xl text-ink">
@@ -127,13 +130,12 @@ export default async function HomePage() {
                   {home.featured.cta.label}
                 </Link>
               </Button>
-            </div>
+            </Reveal>
             <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {grid.map((item) => (
-                <DesignCard
-                  key={item.id}
-                  item={{ ...item, liked: false } as GalleryItem}
-                />
+              {grid.map((item, i) => (
+                <Reveal key={item.id} delay={i * 80}>
+                  <DesignCard item={{ ...item, liked: false } as GalleryItem} />
+                </Reveal>
               ))}
             </div>
           </Container>
@@ -142,7 +144,7 @@ export default async function HomePage() {
 
       {/* ----------------------------------------------------- meaning -- */}
       <Container className="py-20">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <p className="label-caps">{home.meaning.eyebrow}</p>
           <h2 className="mt-3 font-serif text-4xl text-ink">
             {home.meaning.title}
@@ -153,21 +155,23 @@ export default async function HomePage() {
           <Button asChild size="lg" className="mt-8">
             <Link href={home.meaning.cta.href}>{home.meaning.cta.label}</Link>
           </Button>
-        </div>
+        </Reveal>
       </Container>
 
       {/* ----------------------------------------------------- closing -- */}
       <div className="bg-ink">
         <Container className="py-20 text-center">
-          <h2 className="mx-auto max-w-2xl text-balance font-serif text-4xl text-cream sm:text-5xl">
-            {home.closing.title}
-          </h2>
-          <p className="mx-auto mt-5 max-w-lg text-cream/70">
-            {home.closing.body}
-          </p>
-          <Button asChild size="lg" className="mt-8">
-            <Link href={home.closing.cta.href}>{home.closing.cta.label}</Link>
-          </Button>
+          <Reveal>
+            <h2 className="mx-auto max-w-2xl text-balance font-serif text-4xl text-cream sm:text-5xl">
+              {home.closing.title}
+            </h2>
+            <p className="mx-auto mt-5 max-w-lg text-cream/70">
+              {home.closing.body}
+            </p>
+            <Button asChild size="lg" className="mt-8">
+              <Link href={home.closing.cta.href}>{home.closing.cta.label}</Link>
+            </Button>
+          </Reveal>
         </Container>
       </div>
     </div>
