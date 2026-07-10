@@ -127,6 +127,8 @@ export type ShippingAddress = {
   area?: string;
   governorate: string;
   landmark?: string;
+  /** Optional pinned GPS location to help the courier find the address. */
+  geo?: { lat: number; lng: number };
 };
 
 /**

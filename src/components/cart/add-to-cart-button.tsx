@@ -21,6 +21,7 @@ export function AddToCartButton({
   variant = "primary",
   label = "Add to cart",
   showViewCart = true,
+  fullWidth = false,
   className,
 }: {
   designId: string;
@@ -29,6 +30,8 @@ export function AddToCartButton({
   variant?: "primary" | "outline" | "secondary";
   label?: string;
   showViewCart?: boolean;
+  /** Stretch the button / stepper to fill its container (e.g. gallery cards). */
+  fullWidth?: boolean;
   className?: string;
 }) {
   const router = useRouter();
@@ -63,7 +66,13 @@ export function AddToCartButton({
   if (qty <= 0) {
     return (
       <div className={cn("flex flex-col gap-1", className)}>
-        <Button type="button" size={size} variant={variant} onClick={() => change(1)}>
+        <Button
+          type="button"
+          size={size}
+          variant={variant}
+          onClick={() => change(1)}
+          className={cn(fullWidth && "w-full")}
+        >
           <ShoppingBag aria-hidden /> {label}
         </Button>
         {error && <p className="text-xs text-destructive">{error}</p>}
@@ -75,8 +84,13 @@ export function AddToCartButton({
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <div className="flex items-center gap-2">
-        <div className="flex items-center rounded-full border border-border bg-card">
+      <div className={cn("flex items-center gap-2", fullWidth && "w-full")}>
+        <div
+          className={cn(
+            "flex items-center rounded-full border border-border bg-card",
+            fullWidth && "w-full justify-between"
+          )}
+        >
           <button
             type="button"
             aria-label="Decrease quantity"

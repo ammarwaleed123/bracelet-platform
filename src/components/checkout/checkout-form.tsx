@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { MapPin } from "lucide-react";
 
 import { cn, formatPrice } from "@/lib/utils";
 import type { CartLine } from "@/lib/cart/cart";
@@ -37,6 +38,10 @@ export function CheckoutForm({
     landmark: "",
     discountCode: "",
   });
+  const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<"idle" | "locating" | "error">(
+    "idle"
+  );
   const [error, setError] = useState<string | null>(null);
   const [discount, setDiscount] = useState<{ amount: number; code: string } | null>(
     null
@@ -71,10 +76,33 @@ export function CheckoutForm({
     });
   };
 
+  const pinLocation = () => {
+    if (!("geolocation" in navigator)) {
+      setGeoStatus("error");
+      return;
+    }
+    setGeoStatus("locating");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeo({
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        });
+        setGeoStatus("idle");
+      },
+      () => setGeoStatus("error"),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const submit = () => {
     setError(null);
     startTransition(async () => {
-      const res = await placeOrder(form);
+      const res = await placeOrder({
+        ...form,
+        geoLat: geo?.lat,
+        geoLng: geo?.lng,
+      });
       if (res.ok) {
         router.push(`/checkout/confirmation/${res.orderNumber}`);
       } else {
@@ -171,6 +199,55 @@ export function CheckoutForm({
               placeholder="Nearby landmark to help the courier"
             />
           </Field>
+
+          {/* Pin location — captures GPS coordinates to help the courier find
+              the address, which street addresses in Egypt often can't. */}
+          <div className="rounded-2xl border border-border bg-linen/60 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-ink">
+                  Pin your location{" "}
+                  <span className="font-normal text-ink-soft">(optional)</span>
+                </p>
+                <p className="text-xs text-ink-soft">
+                  Helps the courier find you faster.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant={geo ? "outline" : "secondary"}
+                size="sm"
+                onClick={pinLocation}
+                disabled={geoStatus === "locating"}
+              >
+                <MapPin aria-hidden />
+                {geoStatus === "locating"
+                  ? "Locating…"
+                  : geo
+                    ? "Update pin"
+                    : "Pin my location"}
+              </Button>
+            </div>
+            {geo && (
+              <p className="mt-2 text-xs text-gold-strong">
+                Location pinned.{" "}
+                <a
+                  href={`https://www.google.com/maps?q=${geo.lat},${geo.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  View on map
+                </a>
+              </p>
+            )}
+            {geoStatus === "error" && (
+              <p className="mt-2 text-xs text-destructive">
+                Couldn&apos;t get your location. Please allow location access, or
+                skip this — your address is enough.
+              </p>
+            )}
+          </div>
         </section>
 
         <section className="space-y-3">
