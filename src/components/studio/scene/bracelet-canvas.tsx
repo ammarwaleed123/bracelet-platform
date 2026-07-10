@@ -34,11 +34,21 @@ function FitCamera({
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
 }) {
   const { camera, size } = useThree();
+  // Latest radius without making it a refit trigger (see below).
+  const radiusRef = useRef(radius);
+  radiusRef.current = radius;
+  // Only refit when the width changes (mount + orientation flip). Mobile
+  // browsers change the viewport *height* as the URL bar shows/hides on scroll;
+  // refitting on that would reset the user's camera angle mid-scroll.
+  const lastWidth = useRef(-1);
 
   useEffect(() => {
+    if (size.width === lastWidth.current) return;
+    lastWidth.current = size.width;
+
     const cam = camera as THREE.PerspectiveCamera;
     // Bounding radius of the ring plus beads, with a little breathing room.
-    const fitRadius = radius + 1;
+    const fitRadius = radiusRef.current + 1;
     const vHalf = ((cam.fov * Math.PI) / 180) / 2;
     const aspect = size.width / Math.max(1, size.height);
     const hHalf = Math.atan(Math.tan(vHalf) * aspect);
@@ -53,8 +63,7 @@ function FitCamera({
       controls.target.copy(ORIGIN);
       controls.update();
     }
-    // Refit when the canvas is resized (e.g. rotating the phone).
-  }, [camera, size.width, size.height, radius, frontRef, controlsRef]);
+  }, [camera, size.width, size.height, frontRef, controlsRef]);
 
   return null;
 }

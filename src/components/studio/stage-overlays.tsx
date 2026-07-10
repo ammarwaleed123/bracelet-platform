@@ -3,10 +3,41 @@
 import { useMemo } from "react";
 import { Trash2 } from "lucide-react";
 
-import { formatPrice } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { useStudioStore } from "@/lib/studio/store";
 import { indexCatalog, resolveComponent } from "@/lib/studio/derive";
 import type { StudioCatalog } from "@/lib/studio/types";
+
+/**
+ * The delete bin: appears only while a bead/charm is being dragged. Drag a
+ * component onto it and release to remove it. Hit-testing is done by rect in
+ * the drag handler (via the `studio-trash` id), so this stays pointer-transparent.
+ */
+export function DeleteBin() {
+  const dragging = useStudioStore((s) => s.draggingUid !== null);
+  const over = useStudioStore((s) => s.dragOverTrash);
+
+  if (!dragging) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
+      <div
+        id="studio-trash"
+        className={cn(
+          "flex items-center gap-2 rounded-full border px-5 py-3 shadow-lift backdrop-blur transition-all duration-200",
+          over
+            ? "scale-110 border-destructive bg-destructive text-destructive-foreground"
+            : "border-border bg-card/95 text-ink-soft"
+        )}
+      >
+        <Trash2 className="size-5" aria-hidden />
+        <span className="text-sm font-medium">
+          {over ? "Release to remove" : "Drag here to remove"}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * On-canvas overlays for the selected component: a stone-info card (the
@@ -18,16 +49,19 @@ export function StageOverlays({ catalog }: { catalog: StudioCatalog }) {
   const selectedUid = useStudioStore((s) => s.selectedUid);
   const components = useStudioStore((s) => s.components);
   const remove = useStudioStore((s) => s.removeComponent);
+  const dragging = useStudioStore((s) => s.draggingUid !== null);
 
   const selected = useMemo(() => {
     const comp = components.find((c) => c.uid === selectedUid);
     return comp ? resolveComponent(index, comp) : null;
   }, [components, selectedUid, index]);
 
-  if (!selected) return null;
+  // While dragging, show only the delete bin — hide the info card/remove button.
+  if (!selected || dragging) return <DeleteBin />;
 
   return (
     <>
+      <DeleteBin />
       <div className="pointer-events-none absolute bottom-4 left-4 max-w-[16rem]">
         <div className="pointer-events-auto rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-soft backdrop-blur">
           <div className="flex items-center gap-2">

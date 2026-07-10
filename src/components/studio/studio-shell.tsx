@@ -120,8 +120,9 @@ export function StudioShell({
     // so the bracelet is always visible while the palette scrolls beneath it.
     // Desktop: a fixed-height two-column split with an internally-scrolling panel.
     <div className="lg:flex lg:h-[calc(100dvh-4rem)] lg:flex-row">
-      {/* Stage — sticky below the 4rem header on mobile, static column on desktop */}
-      <div className="sticky top-16 z-10 h-[45dvh] w-full border-b border-border bg-[#f7f4ef] lg:relative lg:top-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:border-b-0">
+      {/* Stage — sticky below the 4rem header on mobile, static column on desktop.
+          A soft shadow (not a hard line) lets the palette scroll cleanly under it. */}
+      <div className="sticky top-16 z-10 h-[45dvh] w-full bg-[#f7f4ef] shadow-[0_12px_24px_-18px_rgba(31,26,22,0.45)] lg:relative lg:top-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:shadow-none">
         {ready ? <BraceletCanvas catalog={catalog} /> : <StudioLoading />}
 
         {/* Toolbar overlay */}
@@ -162,7 +163,7 @@ export function StudioShell({
       {/* Control panel — flows as normal page content on mobile (page scrolls
           under the pinned stage); a fixed-width, internally-scrolling rail on
           desktop. */}
-      <aside className="w-full border-t border-border bg-background lg:flex lg:h-full lg:w-[380px] lg:flex-col lg:border-l lg:border-t-0">
+      <aside className="w-full bg-background lg:flex lg:h-full lg:w-[380px] lg:flex-col lg:border-l lg:border-border">
         <div className="space-y-5 p-5 lg:shrink-0">
           <div className="flex items-center justify-between gap-3">
             <p className="font-serif text-lg text-ink">Design</p>

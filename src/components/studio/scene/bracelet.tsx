@@ -65,6 +65,8 @@ export function Bracelet({
   const dragUidRef = useRef<string | null>(null);
   const dragAngleRef = useRef<number | null>(null);
   const dragBefore = useRef(useStudioStore.getState().getDesignState());
+  // Whether the pointer is currently over the delete bin (decides drop action).
+  const overTrashRef = useRef(false);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -82,6 +84,22 @@ export function Bracelet({
 
     const onMove = (e: PointerEvent) => {
       if (!dragUidRef.current) return;
+
+      // Is the pointer over the delete bin? (HTML overlay, hit-tested by rect.)
+      const bin = document
+        .getElementById("studio-trash")
+        ?.getBoundingClientRect();
+      const overTrash =
+        !!bin &&
+        e.clientX >= bin.left &&
+        e.clientX <= bin.right &&
+        e.clientY >= bin.top &&
+        e.clientY <= bin.bottom;
+      overTrashRef.current = overTrash;
+      useStudioStore.getState().setDragOverTrash(overTrash);
+      // While hovering the bin, stop reordering so the bead sits still there.
+      if (overTrash) return;
+
       const hit = pointerToGround(e.clientX, e.clientY);
       if (!hit) return;
 
@@ -106,10 +124,18 @@ export function Bracelet({
     };
 
     const onUp = () => {
-      if (!dragUidRef.current) return;
+      const uid = dragUidRef.current;
+      if (!uid) return;
       dragUidRef.current = null;
       dragAngleRef.current = null;
-      useStudioStore.getState().commitInteraction(dragBefore.current);
+      if (overTrashRef.current) {
+        // Dropped on the bin — delete it as one clean undo step.
+        useStudioStore.getState().removeOnDrop(dragBefore.current, uid);
+      } else {
+        useStudioStore.getState().commitInteraction(dragBefore.current);
+      }
+      overTrashRef.current = false;
+      useStudioStore.getState().endDrag();
       if (controlsRef.current) controlsRef.current.enabled = true;
       document.body.style.cursor = "";
     };
@@ -125,8 +151,10 @@ export function Bracelet({
   const onDragStart = (uid: string) => {
     dragUidRef.current = uid;
     dragAngleRef.current = null;
+    overTrashRef.current = false;
     dragBefore.current = useStudioStore.getState().getDesignState();
     useStudioStore.getState().select(uid);
+    useStudioStore.getState().beginDrag(uid);
     if (controlsRef.current) controlsRef.current.enabled = false;
     document.body.style.cursor = "grabbing";
   };

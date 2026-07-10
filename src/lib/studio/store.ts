@@ -15,6 +15,11 @@ type StudioState = StudioDesignState & {
   future: StudioDesignState[];
   /** Bumping this signals the scene to reset the camera to the front view. */
   cameraResetNonce: number;
+  /* ---- Transient drag state (UI only, never recorded in history) ---- */
+  /** Uid of the bead/charm currently being dragged (null = not dragging). */
+  draggingUid: string | null;
+  /** True while the dragged component is hovering the delete bin. */
+  dragOverTrash: boolean;
   /* ---- Save context (metadata, not part of undo history) ---- */
   /** Id of the saved design being edited (null = unsaved / new). */
   savedDesignId: string | null;
@@ -47,6 +52,13 @@ type StudioActions = {
   moveLive: (uid: string, targetIndex: number) => void;
   /** Record a single history step for a completed drag interaction. */
   commitInteraction: (before: StudioDesignState) => void;
+  /* ---- Drag lifecycle (transient UI state) ---- */
+  beginDrag: (uid: string) => void;
+  setDragOverTrash: (over: boolean) => void;
+  endDrag: () => void;
+  /** Delete a component dropped on the bin, as one clean undo step from
+   *  `before` (the design snapshot taken when the drag began). */
+  removeOnDrop: (before: StudioDesignState, uid: string) => void;
   select: (uid: string | null) => void;
   undo: () => void;
   redo: () => void;
@@ -85,6 +97,8 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
   past: [],
   future: [],
   cameraResetNonce: 0,
+  draggingUid: null,
+  dragOverTrash: false,
   savedDesignId: null,
   forkedFromId: null,
   designName: null,
@@ -208,6 +222,23 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
       if (sameDesign(before, snap(s))) return {};
       return { past: [...s.past, before].slice(-MAX_HISTORY), future: [] };
     }),
+
+  beginDrag: (uid) => set({ draggingUid: uid, dragOverTrash: false }),
+
+  setDragOverTrash: (over) =>
+    set((s) => (s.dragOverTrash === over ? {} : { dragOverTrash: over })),
+
+  endDrag: () => set({ draggingUid: null, dragOverTrash: false }),
+
+  removeOnDrop: (before, uid) =>
+    set((s) => ({
+      past: [...s.past, before].slice(-MAX_HISTORY),
+      future: [],
+      components: before.components.filter((c) => c.uid !== uid),
+      selectedUid: null,
+      draggingUid: null,
+      dragOverTrash: false,
+    })),
 
   select: (uid) => set({ selectedUid: uid }),
 
