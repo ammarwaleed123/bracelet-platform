@@ -121,8 +121,9 @@ export function StudioShell({
     // Desktop: a fixed-height two-column split with an internally-scrolling panel.
     <div className="lg:flex lg:h-[calc(100dvh-4rem)] lg:flex-row">
       {/* Stage — sticky below the 4rem header on mobile, static column on desktop.
-          A soft shadow (not a hard line) lets the palette scroll cleanly under it. */}
-      <div className="sticky top-16 z-10 h-[45dvh] w-full bg-[#f7f4ef] shadow-[0_12px_24px_-18px_rgba(31,26,22,0.45)] lg:relative lg:top-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:shadow-none">
+          svh (not dvh) keeps the height stable when the mobile URL bar hides on
+          scroll. A soft shadow (not a hard line) lets the palette scroll under it. */}
+      <div className="sticky top-16 z-10 h-[45svh] w-full bg-cream shadow-[0_14px_22px_-20px_rgba(31,26,22,0.5)] lg:relative lg:top-auto lg:z-auto lg:h-full lg:min-w-0 lg:flex-1 lg:shadow-none">
         {ready ? <BraceletCanvas catalog={catalog} /> : <StudioLoading />}
 
         {/* Toolbar overlay */}
@@ -175,7 +176,7 @@ export function StudioShell({
           <BaseSelector catalog={catalog} />
           <SizeControl catalog={catalog} />
         </div>
-        <div className="border-t border-border p-5 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+        <div className="p-5 pt-0 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:border-t lg:border-border lg:pt-5">
           <Palette catalog={catalog} />
         </div>
       </aside>

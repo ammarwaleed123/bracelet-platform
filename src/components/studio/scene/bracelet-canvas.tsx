@@ -134,7 +134,7 @@ function CaptureRegistrar() {
       if (!ctx) return null;
       // Premium framing: the bracelet contained and centered on a cream square
       // with a small margin.
-      ctx.fillStyle = "#f7f4ef";
+      ctx.fillStyle = "#faf8f5";
       ctx.fillRect(0, 0, size, size);
       const margin = 0.03;
       const box = size * (1 - margin * 2);
@@ -163,7 +163,7 @@ export function BraceletCanvas({ catalog }: { catalog: StudioCatalog }) {
       gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
       onPointerMissed={() => select(null)}
     >
-      <color attach="background" args={["#f7f4ef"]} />
+      <color attach="background" args={["#faf8f5"]} />
 
       <ambientLight intensity={0.5} />
       <directionalLight position={[5, 8, 5]} intensity={1.2} />
