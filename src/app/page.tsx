@@ -76,21 +76,14 @@ export default async function HomePage() {
       {grid.length > 0 && (
         <div className="border-t border-border bg-linen/50">
           <Container className="py-20">
-            <Reveal className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="label-caps">{home.featured.eyebrow}</p>
-                <h2 className="mt-3 font-serif text-4xl text-ink">
-                  {home.featured.title}
-                </h2>
-                <p className="mt-2 max-w-md text-ink-soft">
-                  {home.featured.subhead}
-                </p>
-              </div>
-              <Button asChild variant="outline">
-                <Link href={home.featured.cta.href}>
-                  {home.featured.cta.label}
-                </Link>
-              </Button>
+            <Reveal>
+              <p className="label-caps">{home.featured.eyebrow}</p>
+              <h2 className="mt-3 font-serif text-4xl text-ink">
+                {home.featured.title}
+              </h2>
+              <p className="mt-2 max-w-md text-ink-soft">
+                {home.featured.subhead}
+              </p>
             </Reveal>
             <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {grid.map((item, i) => (
@@ -99,6 +92,13 @@ export default async function HomePage() {
                 </Reveal>
               ))}
             </div>
+            <Reveal className="mt-10 text-center">
+              <Button asChild variant="outline" size="lg">
+                <Link href={home.featured.cta.href}>
+                  {home.featured.cta.label}
+                </Link>
+              </Button>
+            </Reveal>
           </Container>
         </div>
       )}
