@@ -8,12 +8,14 @@ import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
 import { getUserDesigns } from "@/lib/designs/queries";
 import { getUserOrders } from "@/lib/commerce/orders-query";
+import { getCreatorEarnings } from "@/lib/commerce/commissions";
 import { formatPrice } from "@/lib/utils";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccountDesigns } from "@/components/account/account-designs";
 import { AccountOrders } from "@/components/account/account-orders";
+import { AccountEarnings } from "@/components/account/account-earnings";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -27,7 +29,7 @@ export default async function AccountPage() {
     redirect("/sign-in");
   }
 
-  const [[profile], designs, orders] = await Promise.all([
+  const [[profile], designs, orders, earnings] = await Promise.all([
     db
       .select({ role: profiles.role, credit: profiles.storeCreditInPiastres })
       .from(profiles)
@@ -35,6 +37,7 @@ export default async function AccountPage() {
       .limit(1),
     getUserDesigns(user.id),
     getUserOrders(user.id),
+    getCreatorEarnings(user.id),
   ]);
   const isAdmin = profile?.role === "admin";
   const storeCredit = profile?.credit ?? 0;
@@ -63,6 +66,13 @@ export default async function AccountPage() {
           <SignOutButton />
         </div>
       </div>
+
+      {earnings.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-4 font-serif text-2xl text-ink">Creator earnings</h2>
+          <AccountEarnings earnings={earnings} storeCreditInPiastres={storeCredit} />
+        </section>
+      )}
 
       <section className="mt-12">
         <h2 className="mb-4 font-serif text-2xl text-ink">Your orders</h2>

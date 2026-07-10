@@ -14,6 +14,7 @@ import {
   orders,
 } from "@/lib/db/schema";
 import type { DesignComponent, OrderItemDesignSnapshot } from "@/lib/db/schema";
+import { settleCommissions } from "@/lib/commerce/commissions";
 
 const STATUSES = [
   "pending_confirmation",
@@ -79,6 +80,9 @@ export async function setOrderStatus(
     });
   });
 
+  // Accrue on delivered+paid, reverse on cancelled (idempotent).
+  await settleCommissions(order.id);
+
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderNumber}`);
   revalidatePath(`/orders/${orderNumber}/track`);
@@ -88,10 +92,16 @@ export async function setOrderStatus(
 /** Mark a COD order paid (cash collected). */
 export async function markOrderPaid(orderNumber: string) {
   await requireAdmin();
-  await db
+  const [order] = await db
     .update(orders)
     .set({ paymentStatus: "paid", updatedAt: new Date() })
-    .where(eq(orders.orderNumber, orderNumber));
+    .where(eq(orders.orderNumber, orderNumber))
+    .returning({ id: orders.id });
+
+  // Marking paid may complete a delivered order — settle commissions.
+  if (order) await settleCommissions(order.id);
+
   revalidatePath(`/admin/orders/${orderNumber}`);
   revalidatePath("/admin/orders");
+  revalidatePath("/account");
 }

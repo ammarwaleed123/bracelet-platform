@@ -7,7 +7,13 @@ import { z } from "zod";
 
 import { ensureProfile, requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { designLikes, designs, profiles } from "@/lib/db/schema";
+import {
+  designLikes,
+  designs,
+  orderItems,
+  orders,
+  profiles,
+} from "@/lib/db/schema";
 import { computeDesignPriceInPiastres } from "@/lib/designs/pricing";
 import { uploadDesignThumbnail } from "@/lib/designs/storage";
 
@@ -214,10 +220,16 @@ export async function deleteDesign(designId: string) {
  * is wired in after milestone 1.5, when orders exist. For now, a customer's
  * submission goes straight to the moderation queue.
  */
-export async function publishDesign(designId: string, displayName?: string) {
+export type PublishResult = { ok: true } | { ok: false; error: string };
+
+export async function publishDesign(
+  designId: string,
+  displayName?: string
+): Promise<PublishResult> {
   const user = await requireUser();
   await ensureProfile(user);
-  if (!(await assertOwner(designId, user.id))) return;
+  if (!(await assertOwner(designId, user.id)))
+    return { ok: false, error: "Design not found." };
 
   const [profile] = await db
     .select({ role: profiles.role })
@@ -225,6 +237,29 @@ export async function publishDesign(designId: string, displayName?: string) {
     .where(eq(profiles.id, user.id))
     .limit(1);
   const isAdmin = profile?.role === "admin";
+
+  // Purchase-gate: customers may publish a design only once they've ordered it.
+  if (!isAdmin) {
+    const [bought] = await db
+      .select({ id: orderItems.id })
+      .from(orderItems)
+      .innerJoin(orders, eq(orderItems.orderId, orders.id))
+      .where(
+        and(
+          eq(orderItems.designId, designId),
+          eq(orders.userId, user.id),
+          ne(orders.status, "cancelled")
+        )
+      )
+      .limit(1);
+    if (!bought) {
+      return {
+        ok: false,
+        error:
+          "You can add a design to the gallery once you've ordered it — buy it first, then publish.",
+      };
+    }
+  }
 
   const name = displayName?.trim();
   if (name) {
@@ -243,6 +278,7 @@ export async function publishDesign(designId: string, displayName?: string) {
     .where(eq(designs.id, designId));
   revalidatePath("/account");
   revalidatePath("/gallery");
+  return { ok: true };
 }
 
 export async function unpublishDesign(designId: string) {

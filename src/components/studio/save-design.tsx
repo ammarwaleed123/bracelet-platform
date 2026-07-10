@@ -89,8 +89,13 @@ function SaveDialog({
 
   const onPublish = () => {
     if (!saved) return;
+    setError(null);
     startTransition(async () => {
-      await publishDesign(saved.id, showName ? displayName : undefined);
+      const res = await publishDesign(saved.id, showName ? displayName : undefined);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
       setSubmittedToGallery(true);
     });
   };
@@ -200,6 +205,7 @@ function SaveDialog({
                 />
               )}
             </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="grid grid-cols-2 gap-3">
               <Button asChild variant="outline">
                 <Link href={`/design/${saved.publicId}`}>View & share</Link>
