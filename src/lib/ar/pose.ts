@@ -15,12 +15,14 @@ export const AR_TUNING = {
   smoothingMinCutoff: 1.2,
   /** One-Euro speed coefficient: higher = less lag on fast motion. */
   smoothingBeta: 0.02,
-  /** Bracelet ring radius vs. the wrist→index-MCP distance. */
-  scaleMultiplier: 1.15,
+  /** Bracelet ring radius vs. the wrist→index-MCP distance. Tuned so the ring
+   *  sits snug on the wrist rather than engulfing the whole hand. */
+  scaleMultiplier: 0.35,
   /** Pitch the ring out of the screen plane so it reads as a 3D band (deg). */
   ringTiltOffsetDeg: 32,
-  /** Slide the anchor up the wrist toward the fingers (fraction of bone len). */
-  anchorForearmShift: 0.12,
+  /** Slide the anchor along the wrist; negative sits it toward the forearm
+   *  (below the wrist crease) rather than up onto the hand. */
+  anchorForearmShift: -0.08,
   /** Detection cadence; render runs at display refresh and interpolates. */
   detectionFps: 26,
 };
