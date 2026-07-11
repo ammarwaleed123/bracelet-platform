@@ -40,4 +40,11 @@ export const env = {
   get siteUrl() {
     return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   },
+  /** Feature flags. Public (NEXT_PUBLIC_*) so they gate on client + server. */
+  features: {
+    /** AR "See It On My Wrist" prototype route (/studio/ar). */
+    get ar() {
+      return process.env.NEXT_PUBLIC_FEATURE_AR === "true";
+    },
+  },
 };
