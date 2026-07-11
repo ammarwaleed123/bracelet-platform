@@ -17,11 +17,13 @@ export const AR_TUNING = {
   smoothingBeta: 0.02,
   /** Bracelet ring radius vs. the knuckle-breadth reference. Tuned so the ring
    *  sits snug on the wrist rather than engulfing the whole hand. */
-  scaleMultiplier: 0.5,
-  /** Extra pitch on top of the measured wrist orientation (deg). Small values
-   *  lift the band's front so it sits on TOP of the wrist. 0 = follow the hand
-   *  exactly. */
-  ringTiltOffsetDeg: 12,
+  scaleMultiplier: 0.42,
+  /** Fixed pitch that opens the band toward the camera so it reads as a 3D
+   *  band on TOP of the wrist rather than an edge-on line (deg). */
+  ringTiltOffsetDeg: 16,
+  /** How much the band tilts with the wrist pointing toward/away from camera.
+   *  Bounded so the ring can never flip to face the camera. 0 = ignore depth. */
+  depthResponse: 0.5,
   /** Slide the anchor along the wrist; negative sits it toward the forearm
    *  (below the wrist crease) rather than up onto the hand. */
   anchorForearmShift: -0.08,
@@ -106,7 +108,6 @@ export function computeRawPose(
   tuning: ArTuning
 ): ArPose | null {
   if (!image || image.length <= PINKY_MCP) return null;
-  if (!world || world.length <= MIDDLE_MCP) return null;
 
   const wrist = image[WRIST]!;
   const indexMcp = image[INDEX_MCP]!;
@@ -125,17 +126,32 @@ export function computeRawPose(
   const x = anchor.x + (toMiddle.x - anchor.x) * shift;
   const y = anchor.y + (toMiddle.y - anchor.y) * shift;
 
-  // Forearm axis in 3D from the metric world landmarks (wrist → middle-MCP),
-  // converted to three.js camera space: MediaPipe world is x-right, y-DOWN, and
-  // smaller z = closer to camera; three is x-right, y-UP, +z toward camera.
-  const w0 = world[WRIST]!;
-  const w9 = world[MIDDLE_MCP]!;
-  let ax = w9.x - w0.x;
-  const ay = -(w9.y - w0.y);
-  const az = -(w9.z - w0.z);
-  if (vp.mirrored) ax = -ax; // front camera is mirrored on screen
+  // Screen-plane forearm direction from the reliable 2D image landmarks — this
+  // can never blow up the way raw world depth did (which flipped the ring to
+  // face the camera). Unit length in the screen plane.
+  let ux = toMiddle.x - anchor.x;
+  let uy = toMiddle.y - anchor.y;
+  const ulen = Math.hypot(ux, uy) || 1;
+  ux /= ulen;
+  uy /= ulen;
 
-  return { visible: true, x, y, radius, ax, ay, az };
+  // Small, BOUNDED depth tilt from the world landmarks so the band responds to
+  // the wrist pointing toward/away from the camera — clamped so the ring can
+  // never turn face-on. MediaPipe world: smaller z = closer to camera.
+  let az = 0;
+  if (world && world.length > MIDDLE_MCP) {
+    const w0 = world[WRIST]!;
+    const w9 = world[MIDDLE_MCP]!;
+    const dz = -(w9.z - w0.z);
+    const wl = Math.hypot(w9.x - w0.x, w9.y - w0.y, dz) || 1;
+    az = clamp((dz / wl) * tuning.depthResponse, -0.7, 0.7);
+  }
+
+  return { visible: true, x, y, radius, ax: ux, ay: uy, az };
+}
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, v));
 }
 
 /* --------------------------------------------------------- One-Euro ------ */

@@ -13,6 +13,7 @@ const FIELDS: { key: Key; label: string; min: number; max: number; step: number 
     { key: "smoothingBeta", label: "Smoothing (beta)", min: 0, max: 0.2, step: 0.005 },
     { key: "scaleMultiplier", label: "Scale multiplier", min: 0.1, max: 1.2, step: 0.02 },
     { key: "ringTiltOffsetDeg", label: "Ring tilt (deg)", min: 0, max: 90, step: 1 },
+    { key: "depthResponse", label: "Depth response", min: 0, max: 1.2, step: 0.05 },
     { key: "anchorForearmShift", label: "Anchor shift", min: -0.3, max: 0.5, step: 0.02 },
     { key: "occluderRadiusFactor", label: "Wrist cover", min: 0.4, max: 1.1, step: 0.02 },
     { key: "detectionFps", label: "Detection FPS", min: 12, max: 60, step: 1 },
