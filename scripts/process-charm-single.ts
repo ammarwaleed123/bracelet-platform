@@ -196,7 +196,9 @@ async function main() {
   } else {
     anchor = norm(findBailAnchor(img));
   }
-  await fs.writeFile(`${OUT}/${SLUG}.json`, JSON.stringify({ points, aspect: w / h, anchor }));
+  // Round bead charms (center mode) render as a sphere; pendants as an extrusion.
+  const shape = MODE === "center" ? "sphere" : "extrude";
+  await fs.writeFile(`${OUT}/${SLUG}.json`, JSON.stringify({ points, aspect: w / h, anchor, shape }));
   await rasterize(simp, w, h, `${OUT}/${SLUG}-outline.png`);
   console.log(`  ✓ ${SLUG}: ${w}x${h}, ${points.length} pts, anchor [${anchor.map((v) => v.toFixed(2)).join(", ")}]`);
 }

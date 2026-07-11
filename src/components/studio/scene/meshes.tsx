@@ -338,7 +338,18 @@ export function ComponentMesh({
     >
       {isCharm ? (
         photoName ? (
-          photoModel && (
+          photoModel &&
+          (photoModel.isSphere ? (
+            // Round bead charm: a sphere with the photo wrapped on it.
+            <mesh geometry={photoModel.geometry} scale={beadRadius * 2.2}>
+              <meshStandardMaterial
+                map={photoModel.texture}
+                metalness={0.25}
+                roughness={0.5}
+                envMapIntensity={1.3}
+              />
+            </mesh>
+          ) : (
             <mesh geometry={photoModel.geometry} scale={beadRadius * 2.2}>
               {/* caps: the photo (alphaTest gives clean edges + see-through holes) */}
               <meshStandardMaterial
@@ -359,7 +370,7 @@ export function ComponentMesh({
                 envMapIntensity={1.2}
               />
             </mesh>
-          )
+          ))
         ) : (
           <mesh geometry={charmGeometry} scale={beadRadius / 0.5}>
             <meshStandardMaterial

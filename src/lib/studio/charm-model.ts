@@ -12,8 +12,10 @@ import * as THREE from "three";
  */
 
 export type CharmModel = {
-  geometry: THREE.ExtrudeGeometry;
+  geometry: THREE.BufferGeometry;
   texture: THREE.Texture;
+  /** True for round bead charms (a sphere), false for extruded pendants. */
+  isSphere: boolean;
 };
 
 type Contour = {
@@ -21,6 +23,8 @@ type Contour = {
   aspect: number;
   /** Bail-hole position (normalized), so the charm hangs from its loop. */
   anchor?: [number, number];
+  /** "sphere" = round bead (threads on the string); else an extruded pendant. */
+  shape?: "sphere" | "extrude";
 };
 
 const cache = new Map<string, Promise<CharmModel>>();
@@ -92,6 +96,19 @@ function buildGeometry(
   return geometry;
 }
 
+/** A unit sphere whose UVs planar-project the front-view photo onto it, so a
+ *  round bead charm reads as a ball (front shows the photo, back mirrors it). */
+function buildSphere(): THREE.SphereGeometry {
+  const g = new THREE.SphereGeometry(0.5, 48, 48);
+  const pos = g.attributes.position!;
+  const uv = g.attributes.uv!;
+  for (let i = 0; i < pos.count; i++) {
+    uv.setXY(i, pos.getX(i) + 0.5, pos.getY(i) + 0.5);
+  }
+  uv.needsUpdate = true;
+  return g;
+}
+
 export function getCharmModel(name: string): Promise<CharmModel> {
   let promise = cache.get(name);
   if (!promise) {
@@ -100,7 +117,11 @@ export function getCharmModel(name: string): Promise<CharmModel> {
         fetch(`/charms/${name}.json`).then((r) => r.json() as Promise<Contour>),
         loadTexture(`/charms/${name}.png`),
       ]);
-      return { geometry: buildGeometry(contour.points, contour.anchor), texture };
+      const isSphere = contour.shape === "sphere";
+      const geometry = isSphere
+        ? buildSphere()
+        : buildGeometry(contour.points, contour.anchor);
+      return { geometry, texture, isSphere };
     })();
     cache.set(name, promise);
   }
