@@ -5,9 +5,12 @@
  */
 import Jimp from "jimp";
 
-// mode: "auto" hangs from the detected bail hole; "center" threads through the
-// middle (for round bead/ball charms).
-const [, , INPUT, SLUG, MAX = "640", MODE = "auto"] = process.argv;
+// mode:  "auto" hangs from the detected bail hole; "center" threads through the
+//        middle (bead/ball charms).
+// shape: optional override — "sphere" (round bead) or "extrude" (silhouette).
+//        Defaults to sphere for center mode, extrude otherwise. Use `center
+//        extrude` for a shaped bead (e.g. a heart bead that threads through).
+const [, , INPUT, SLUG, MAX = "640", MODE = "auto", SHAPE_ARG] = process.argv;
 const OUT = "public/charms";
 const maxDim = Number(MAX);
 
@@ -196,9 +199,10 @@ async function main() {
   } else {
     anchor = norm(findBailAnchor(img));
   }
-  // Round bead charms (center mode) render as a sphere; pendants as an extrusion.
-  const shape = MODE === "center" ? "sphere" : "extrude";
+  // Round beads default to a sphere; pendants + shaped beads use the silhouette.
+  const shape = SHAPE_ARG ?? (MODE === "center" ? "sphere" : "extrude");
   await fs.writeFile(`${OUT}/${SLUG}.json`, JSON.stringify({ points, aspect: w / h, anchor, shape }));
+  console.log(`     mode=${MODE} shape=${shape}`);
   await rasterize(simp, w, h, `${OUT}/${SLUG}-outline.png`);
   console.log(`  ✓ ${SLUG}: ${w}x${h}, ${points.length} pts, anchor [${anchor.map((v) => v.toFixed(2)).join(", ")}]`);
 }

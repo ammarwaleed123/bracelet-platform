@@ -29,6 +29,8 @@ const PHOTO_CHARMS: {
 }[] = [
   { slug: "starlight-heart", name: "Starlight Heart", meaning: "A whole universe of love.", kind: "charm", egp: 130, sortOrder: 1 },
   { slug: "pink-pave", name: "Pink Pavé", meaning: "A little blush of sparkle.", kind: "bead", egp: 150, sortOrder: 2 },
+  { slug: "love-locks", name: "Love Locks", meaning: "Two hearts, locked as one.", kind: "charm", egp: 185, sortOrder: 3 },
+  { slug: "crowned-heart", name: "Crowned Heart", meaning: "A little royalty for your wrist.", kind: "bead", egp: 160, sortOrder: 4 },
 ];
 
 // Earlier low-res grid charms to hide.
