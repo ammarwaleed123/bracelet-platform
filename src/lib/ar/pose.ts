@@ -18,9 +18,9 @@ export const AR_TUNING = {
   /** Bracelet ring radius vs. the knuckle-breadth reference. Tuned so the ring
    *  sits snug on the wrist rather than engulfing the whole hand. */
   scaleMultiplier: 0.4,
-  /** Slide the anchor toward the elbow (× ring radius) so it rests where a
-   *  bracelet sits, just below the wrist bone rather than up on the hand. */
-  anchorForearmShift: 0.4,
+  /** Where the bracelet centre sits, as a fraction from the WRIST (0) toward the
+   *  middle-finger knuckle (1). 0.5 = centre of the hand/palm. */
+  anchorForearmShift: 0.5,
   /** Orientation slerp factor per 1/60 s (frame-rate corrected in the renderer).
    *  Lower = calmer/laggier, higher = snappier. */
   orientSlerp: 0.4,
@@ -122,10 +122,11 @@ export function computeRawPose(
   const breadth = Math.hypot(p17.x - p5.x, p17.y - p5.y) || 1;
   const radius = breadth * tuning.scaleMultiplier;
 
-  // Sit the ring at the wrist, nudged toward the elbow (away from the knuckles).
-  const off = radius * tuning.anchorForearmShift;
-  const x = wrist.x - kx * off;
-  const y = wrist.y - ky * off;
+  // Place the ring centre along the wrist→middle-knuckle line (0 = wrist,
+  // 1 = knuckle); 0.5 sits it on the centre of the hand.
+  const f = tuning.anchorForearmShift;
+  const x = wrist.x + (p9.x - wrist.x) * f;
+  const y = wrist.y + (p9.y - wrist.y) * f;
 
   // Ring normal: screen projection points toward the knuckles (kx,ky), plus a
   // consistent depth tilt so the ring reads as a foreshortened ellipse. The band
