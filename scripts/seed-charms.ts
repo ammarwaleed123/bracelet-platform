@@ -33,10 +33,8 @@ const PHOTO_CHARMS: {
   { slug: "crowned-heart", name: "Crowned Heart", meaning: "A little royalty for your wrist.", kind: "bead", egp: 160, sortOrder: 4 },
 ];
 
-// Earlier low-res grid charms to hide.
-const HIDE = ["key", "padlock"];
-// Charms to send back to their procedural shape (drop the low-res photo).
-const REVERT = ["butterfly", "feather"];
+// The earlier low-res grid charms — remove them entirely (no longer wanted).
+const DELETE_SLUGS = ["key", "padlock", "butterfly", "feather"];
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -73,13 +71,9 @@ async function main() {
     }
   }
 
-  if (HIDE.length) {
-    await db.update(schema.charms).set({ isActive: false, updatedAt: new Date() }).where(inArray(schema.charms.slug, HIDE));
-    console.log(`  ✓ hid ${HIDE.join(", ")}`);
-  }
-  if (REVERT.length) {
-    await db.update(schema.charms).set({ imageUrl: null, updatedAt: new Date() }).where(inArray(schema.charms.slug, REVERT));
-    console.log(`  ✓ reverted ${REVERT.join(", ")} to procedural`);
+  if (DELETE_SLUGS.length) {
+    await db.delete(schema.charms).where(inArray(schema.charms.slug, DELETE_SLUGS));
+    console.log(`  ✓ deleted ${DELETE_SLUGS.join(", ")}`);
   }
 
   await client.end();
