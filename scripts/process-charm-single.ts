@@ -87,6 +87,65 @@ function rdp(pts: [number, number][], eps: number): [number, number][] {
   return [pts[0]!, pts[pts.length - 1]!];
 }
 
+/**
+ * Find the bail hole (the loop the charm hangs from): the top-most transparent
+ * region ENCLOSED by the charm (not connected to the outer background). Returns
+ * its centroid in pixel coords, or the top-centre of the shape as a fallback.
+ */
+function findBailAnchor(img: Img): [number, number] {
+  const { data, width: w, height: h } = img.bitmap;
+  const transparent = (x: number, y: number) => data[idx(x, y, w) + 3]! <= A;
+  const outer = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const seed = (x: number, y: number) => {
+    const p = y * w + x;
+    if (transparent(x, y) && !outer[p]) { outer[p] = 1; stack.push(p); }
+  };
+  for (let x = 0; x < w; x++) { seed(x, 0); seed(x, h - 1); }
+  for (let y = 0; y < h; y++) { seed(0, y); seed(w - 1, y); }
+  while (stack.length) {
+    const p = stack.pop()!;
+    const px = p % w, py = (p / w) | 0;
+    const nb: [number, number][] = [[px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]];
+    for (const [nx, ny] of nb)
+      if (nx >= 0 && ny >= 0 && nx < w && ny < h) seed(nx, ny);
+  }
+
+  // Enclosed transparent components (holes) — pick the top-most sizeable one.
+  const seen = new Uint8Array(w * h);
+  let best: { cx: number; cy: number; n: number } | null = null;
+  for (let p = 0; p < w * h; p++) {
+    const x0 = p % w, y0 = (p / w) | 0;
+    if (seen[p] || outer[p] || !transparent(x0, y0)) continue;
+    let sx = 0, sy = 0, n = 0;
+    const st = [p];
+    seen[p] = 1;
+    while (st.length) {
+      const q = st.pop()!;
+      const qx = q % w, qy = (q / w) | 0;
+      sx += qx; sy += qy; n++;
+      for (const [nx, ny] of [[qx + 1, qy], [qx - 1, qy], [qx, qy + 1], [qx, qy - 1]] as [number, number][]) {
+        const np = ny * w + nx;
+        if (nx >= 0 && ny >= 0 && nx < w && ny < h && !seen[np] && !outer[np] && transparent(nx, ny)) {
+          seen[np] = 1; st.push(np);
+        }
+      }
+    }
+    const cy = sy / n;
+    if (n >= 20 && (!best || cy < best.cy)) best = { cx: sx / n, cy, n };
+  }
+  if (best) return [best.cx, best.cy];
+
+  // Fallback: top-centre of the silhouette.
+  let topY = h, cxAtTop = w / 2;
+  for (let y = 0; y < h; y++) {
+    let sum = 0, count = 0;
+    for (let x = 0; x < w; x++) if (data[idx(x, y, w) + 3]! > A) { sum += x; count++; }
+    if (count) { topY = y; cxAtTop = sum / count; break; }
+  }
+  return [cxAtTop, topY];
+}
+
 async function rasterize(pts: [number, number][], w: number, h: number, path: string) {
   const img = new Jimp(w, h, 0xfaf8f5ff);
   const gold = Jimp.rgbaToInt(176, 141, 87, 255);
@@ -120,10 +179,14 @@ async function main() {
   if (!raw) throw new Error("no contour traced");
   const simp = rdp(raw, 1.6);
   const s = 1 / Math.max(w, h);
-  const points = simp.map(([x, y]) => [(x - w / 2) * s, (h / 2 - y) * s] as [number, number]);
-  await fs.writeFile(`${OUT}/${SLUG}.json`, JSON.stringify({ points, aspect: w / h }));
+  const norm = ([x, y]: [number, number]) => [(x - w / 2) * s, (h / 2 - y) * s] as [number, number];
+  const points = simp.map(norm);
+  // Attachment point (bail hole), in the same normalized space, so the studio
+  // can hang the charm from the loop instead of skewering its centre.
+  const anchor = norm(findBailAnchor(img));
+  await fs.writeFile(`${OUT}/${SLUG}.json`, JSON.stringify({ points, aspect: w / h, anchor }));
   await rasterize(simp, w, h, `${OUT}/${SLUG}-outline.png`);
-  console.log(`  ✓ ${SLUG}: ${w}x${h}, ${points.length} outline pts`);
+  console.log(`  ✓ ${SLUG}: ${w}x${h}, ${points.length} pts, anchor [${anchor.map((v) => v.toFixed(2)).join(", ")}]`);
 }
 
 main().catch((e) => {

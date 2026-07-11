@@ -16,7 +16,12 @@ export type CharmModel = {
   texture: THREE.Texture;
 };
 
-type Contour = { points: [number, number][]; aspect: number };
+type Contour = {
+  points: [number, number][];
+  aspect: number;
+  /** Bail-hole position (normalized), so the charm hangs from its loop. */
+  anchor?: [number, number];
+};
 
 const cache = new Map<string, Promise<CharmModel>>();
 
@@ -33,7 +38,10 @@ async function loadTexture(url: string): Promise<THREE.Texture> {
   return tex;
 }
 
-function buildGeometry(points: [number, number][]): THREE.ExtrudeGeometry {
+function buildGeometry(
+  points: [number, number][],
+  anchor?: [number, number]
+): THREE.ExtrudeGeometry {
   const shape = new THREE.Shape();
   points.forEach(([x, y], i) => (i ? shape.lineTo(x, y) : shape.moveTo(x, y)));
   shape.closePath();
@@ -70,7 +78,17 @@ function buildGeometry(points: [number, number][]): THREE.ExtrudeGeometry {
       ],
     },
   });
-  geometry.center();
+  // Anchor the geometry at the bail hole so the charm hangs from its loop (the
+  // ring point sits at the hole and the body dangles below). Fall back to the
+  // bbox centre when no anchor is available. Depth is centred either way.
+  if (anchor) {
+    geometry.translate(-anchor[0], -anchor[1], 0);
+    geometry.computeBoundingBox();
+    const bb = geometry.boundingBox!;
+    geometry.translate(0, 0, -(bb.min.z + bb.max.z) / 2);
+  } else {
+    geometry.center();
+  }
   return geometry;
 }
 
@@ -82,7 +100,7 @@ export function getCharmModel(name: string): Promise<CharmModel> {
         fetch(`/charms/${name}.json`).then((r) => r.json() as Promise<Contour>),
         loadTexture(`/charms/${name}.png`),
       ]);
-      return { geometry: buildGeometry(contour.points), texture };
+      return { geometry: buildGeometry(contour.points, contour.anchor), texture };
     })();
     cache.set(name, promise);
   }
