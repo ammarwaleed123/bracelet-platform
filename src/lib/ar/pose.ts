@@ -18,15 +18,15 @@ export const AR_TUNING = {
   /** Bracelet ring radius vs. the knuckle-breadth reference. Tuned so the ring
    *  sits snug on the wrist rather than engulfing the whole hand. */
   scaleMultiplier: 0.4,
-  /** Fixed pitch that opens the band toward the camera so it reads as a 3D
-   *  band on TOP of the wrist rather than an edge-on line (deg). */
-  ringTiltOffsetDeg: 14,
-  /** How much the band tilts with the wrist pointing toward/away from camera.
-   *  Bounded so the ring can never flip to face the camera. 0 = ignore depth. */
-  depthResponse: 0.5,
   /** Slide the anchor along the wrist; negative sits it toward the forearm
    *  (below the wrist crease) rather than up onto the hand. */
   anchorForearmShift: -0.08,
+  /** Orientation slerp factor per 1/60 s (frame-rate corrected in the renderer).
+   *  Lower = calmer/laggier, higher = snappier. */
+  orientSlerp: 0.4,
+  /** Corrects the world-landmark depth sign (+1 or −1). Flip once on-device if
+   *  the band tips the wrong way toward/away from the camera. */
+  axisZSign: -1,
   /** Invisible wrist occluder radius vs. the ring radius. Hides the back half
    *  of the bracelet behind the wrist so it wraps like a real bracelet. Larger
    *  = more of the bracelet hidden (thicker apparent wrist), leaving mainly the
@@ -65,8 +65,9 @@ export type Viewport = {
 
 // Landmark indices we rely on (MediaPipe hand model).
 const WRIST = 0;
-const MIDDLE_MCP = 9;
 const INDEX_MCP = 5;
+const MIDDLE_MCP = 9;
+const RING_MCP = 13;
 const PINKY_MCP = 17;
 
 /**
@@ -127,28 +128,48 @@ export function computeRawPose(
   const x = anchor.x + (toMiddle.x - anchor.x) * shift;
   const y = anchor.y + (toMiddle.y - anchor.y) * shift;
 
-  // Screen-plane forearm direction from the reliable 2D image landmarks — this
-  // can never blow up the way raw world depth did (which flipped the ring to
-  // face the camera). Unit length in the screen plane.
+  // The ring normal = the forearm axis, as a genuine unit 3D vector:
+  //  • screen direction (ux,uy) from the reliable 2D image landmarks — this
+  //    guarantees the band lines up with the visible arm (reading the screen
+  //    direction from world landmarks is what flipped it face-on before);
+  //  • depth az from the world landmarks (true toward/away-camera pitch).
+  // Arm across frame → az≈0 → edge-on band; arm at camera → |az|→1 → circle.
   let ux = toMiddle.x - anchor.x;
   let uy = toMiddle.y - anchor.y;
   const ulen = Math.hypot(ux, uy) || 1;
   ux /= ulen;
   uy /= ulen;
 
-  // Small, BOUNDED depth tilt from the world landmarks so the band responds to
-  // the wrist pointing toward/away from the camera — clamped so the ring can
-  // never turn face-on. MediaPipe world: smaller z = closer to camera.
-  let az = 0;
-  if (world && world.length > MIDDLE_MCP) {
-    const w0 = world[WRIST]!;
-    const w9 = world[MIDDLE_MCP]!;
-    const dz = -(w9.z - w0.z);
-    const wl = Math.hypot(w9.x - w0.x, w9.y - w0.y, dz) || 1;
-    az = clamp((dz / wl) * tuning.depthResponse, -0.7, 0.7);
-  }
+  const az = clamp(forearmDepth(world, tuning), -0.98, 0.98);
+  const inPlane = Math.sqrt(Math.max(0, 1 - az * az));
 
-  return { visible: true, x, y, radius, ax: ux, ay: uy, az };
+  return { visible: true, x, y, radius, ax: ux * inPlane, ay: uy * inPlane, az };
+}
+
+/**
+ * Normalized depth (z-component) of the forearm axis from the metric world
+ * landmarks: the axis runs from the knuckle centroid (avg MCP 5/9/13) to the
+ * wrist. MediaPipe world is x-right, y-DOWN, smaller z = closer to camera; we
+ * only need the z-ratio here, so the whole coordinate mapping reduces to the
+ * single `axisZSign` flip (three.js +z is toward the camera). Mirror-invariant.
+ */
+function forearmDepth(world: Landmark[] | undefined, tuning: ArTuning): number {
+  if (!world || world.length <= PINKY_MCP) return 0;
+  const w0 = world[WRIST]!;
+  let mx = 0;
+  let my = 0;
+  let mz = 0;
+  for (const i of [INDEX_MCP, MIDDLE_MCP, RING_MCP]) {
+    const w = world[i]!;
+    mx += w.x;
+    my += w.y;
+    mz += w.z;
+  }
+  const dx = w0.x - mx / 3;
+  const dy = w0.y - my / 3;
+  const dz = w0.z - mz / 3;
+  const len = Math.hypot(dx, dy, dz) || 1;
+  return (dz / len) * tuning.axisZSign;
 }
 
 function clamp(v: number, min: number, max: number): number {

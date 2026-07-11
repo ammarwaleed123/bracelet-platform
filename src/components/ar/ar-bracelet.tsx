@@ -17,7 +17,11 @@ import { AR_TUNING, PoseSmoother, type ArPose } from "@/lib/ar/pose";
 /** Shared, mutable target the detection loop writes and the renderer reads. */
 export type PoseTarget = { raw: ArPose | null };
 
-const UP = new THREE.Vector3(0, 1, 0);
+// Stable-roll reference: the ring's local +Z is pointed along this (projected
+// onto the ring plane) so the beaded arc faces the camera and never spins as
+// the forearm axis moves. REF_ALT avoids the degeneracy when axis ∥ REF.
+const REF = new THREE.Vector3(0, 0, 1);
+const REF_ALT = new THREE.Vector3(0, 1, 0);
 
 function prefersReducedMotion() {
   return (
@@ -29,8 +33,9 @@ function prefersReducedMotion() {
 /**
  * The bracelet, reusing the studio meshes, anchored to the smoothed wrist pose.
  * The ring geometry lies in the XZ plane (local axis = +Y); we rotate that axis
- * onto the forearm direction (pitched out of screen by `ringTiltOffsetDeg`) so
- * it reads as a band around the wrist, and fade opacity with detection presence.
+ * onto the measured 3D forearm axis so the ring plane stays perpendicular to the
+ * forearm (a band when the arm is across the frame, a circle when it points at
+ * the camera), slerp-smoothed, and fade opacity with detection presence.
  */
 export function ArBracelet({
   catalog,
@@ -59,8 +64,10 @@ export function ArBracelet({
   const wasVisible = useRef(false);
   const opacity = useRef(0);
   const forearmAxis = useRef(new THREE.Vector3());
-  const tiltAxis = useRef(new THREE.Vector3());
-  const quat = useRef(new THREE.Quaternion());
+  const ringX = useRef(new THREE.Vector3());
+  const ringZ = useRef(new THREE.Vector3());
+  const basis = useRef(new THREE.Matrix4());
+  const quatTarget = useRef(new THREE.Quaternion());
 
   // Inert drag refs so the reused ComponentMesh runs with no studio behavior.
   const dragUidRef = useRef<string | null>(null);
@@ -74,8 +81,9 @@ export function ArBracelet({
     const visible = raw?.visible ?? false;
     const t = performance.now() / 1000;
 
-    // Snap the smoother on re-acquisition so it doesn't ease from stale state.
-    if (visible && !wasVisible.current) smoother.current.reset();
+    // Snap the smoother + orientation on re-acquisition (no easing from stale state).
+    const justAppeared = visible && !wasVisible.current;
+    if (justAppeared) smoother.current.reset();
     wasVisible.current = visible;
 
     if (visible && raw) {
@@ -85,19 +93,25 @@ export function ArBracelet({
       const scale = layout.radiusUnits > 0 ? pose.radius / layout.radiusUnits : 0;
       g.scale.setScalar(scale);
 
-      // Ring axis = the measured 3D forearm axis, so the band's tilt tracks the
-      // real wrist as the hand moves. A small extra pitch (about the axis's
-      // screen-perpendicular) lifts the front so it sits on top of the wrist.
-      forearmAxis.current.set(pose.ax, pose.ay, pose.az).normalize();
-      const tilt = (AR_TUNING.ringTiltOffsetDeg * Math.PI) / 180;
-      if (tilt !== 0) {
-        tiltAxis.current
-          .set(-forearmAxis.current.y, forearmAxis.current.x, 0)
-          .normalize();
-        forearmAxis.current.applyAxisAngle(tiltAxis.current, tilt).normalize();
+      // Ring normal = the measured 3D forearm axis — the ring plane stays 90° to
+      // the forearm (no fake camera tilt). Build a target orientation with STABLE
+      // roll (local +Y → axis; local +Z → a fixed reference projected onto the
+      // ring plane) so the beaded arc never spins as the axis moves.
+      const axis = forearmAxis.current.set(pose.ax, pose.ay, pose.az).normalize();
+      const ref = Math.abs(axis.dot(REF)) > 0.9 ? REF_ALT : REF;
+      ringX.current.crossVectors(ref, axis).normalize();
+      ringZ.current.crossVectors(axis, ringX.current).normalize();
+      basis.current.makeBasis(ringX.current, axis, ringZ.current);
+      quatTarget.current.setFromRotationMatrix(basis.current);
+
+      // Slerp toward the target for calm, flicker-free motion (frame-rate
+      // corrected); snap instantly on the first frame after re-acquisition.
+      if (justAppeared || !animate) {
+        g.quaternion.copy(quatTarget.current);
+      } else {
+        const s = 1 - Math.pow(1 - AR_TUNING.orientSlerp, delta * 60);
+        g.quaternion.slerp(quatTarget.current, s);
       }
-      quat.current.setFromUnitVectors(UP, forearmAxis.current);
-      g.quaternion.copy(quat.current);
 
       // Size the invisible wrist occluder (hides the bracelet's back half).
       if (occluderRef.current) {
