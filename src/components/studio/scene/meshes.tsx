@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { ResolvedComponent } from "@/lib/studio/derive";
 import { componentRadiusUnits } from "@/lib/studio/derive";
 import { letterTexture, softShadowTexture, stoneTexture } from "@/lib/studio/textures";
+import { charmPhotoName, useCharmModel } from "@/lib/studio/charm-model";
 import type { StudioBase } from "@/lib/studio/types";
 
 const GOLD = "#b08d57";
@@ -285,6 +286,11 @@ export function ComponentMesh({
   const isCharm = resolved.kind === "charm";
   const charmGeometry = useCharmGeometry(resolved);
 
+  // Real-photo charms (a traced outline extruded into 3D with the photo on its
+  // faces) when the charm has a /charms/<name>.png asset; else procedural shape.
+  const photoName = isCharm ? charmPhotoName(resolved.imageUrl) : null;
+  const photoModel = useCharmModel(photoName);
+
   const stoneMap = useMemo(
     () => (isCharm ? null : stoneTexture(resolved.material?.color ?? resolved.colorHex)),
     [isCharm, resolved.material?.color, resolved.colorHex]
@@ -331,15 +337,40 @@ export function ComponentMesh({
       }}
     >
       {isCharm ? (
-        <mesh geometry={charmGeometry} scale={beadRadius / 0.5}>
-          <meshStandardMaterial
-            color={resolved.colorHex}
-            map={letterMap ?? undefined}
-            metalness={resolved.material?.metalness ?? 1}
-            roughness={resolved.material?.roughness ?? 0.32}
-            envMapIntensity={1.2}
-          />
-        </mesh>
+        photoName ? (
+          photoModel && (
+            <mesh geometry={photoModel.geometry} scale={beadRadius * 2.2}>
+              {/* caps: the photo (alphaTest gives clean edges + see-through holes) */}
+              <meshStandardMaterial
+                attach="material-0"
+                map={photoModel.texture}
+                alphaTest={0.5}
+                side={THREE.DoubleSide}
+                metalness={0.35}
+                roughness={0.45}
+                envMapIntensity={1.2}
+              />
+              {/* extruded edge: antique gold */}
+              <meshStandardMaterial
+                attach="material-1"
+                color="#a8834e"
+                metalness={0.9}
+                roughness={0.35}
+                envMapIntensity={1.2}
+              />
+            </mesh>
+          )
+        ) : (
+          <mesh geometry={charmGeometry} scale={beadRadius / 0.5}>
+            <meshStandardMaterial
+              color={resolved.colorHex}
+              map={letterMap ?? undefined}
+              metalness={resolved.material?.metalness ?? 1}
+              roughness={resolved.material?.roughness ?? 0.32}
+              envMapIntensity={1.2}
+            />
+          </mesh>
+        )
       ) : (
         <mesh>
           <sphereGeometry args={[beadRadius, 48, 48]} />
