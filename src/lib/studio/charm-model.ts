@@ -14,17 +14,21 @@ import * as THREE from "three";
 export type CharmModel = {
   geometry: THREE.BufferGeometry;
   texture: THREE.Texture;
-  /** True for round bead charms (a sphere), false for extruded pendants. */
-  isSphere: boolean;
+  /** True for volumetric bead charms (sphere/puff) → single material, no gold
+   *  edge; false for extruded pendants (photo faces + gold edge). */
+  isBead: boolean;
 };
+
+type Shape3D = "sphere" | "puff" | "extrude";
 
 type Contour = {
   points: [number, number][];
   aspect: number;
   /** Bail-hole position (normalized), so the charm hangs from its loop. */
   anchor?: [number, number];
-  /** "sphere" = round bead (threads on the string); else an extruded pendant. */
-  shape?: "sphere" | "extrude";
+  /** sphere = round bead; puff = inflated shaped bead (e.g. a heart); else an
+   *  extruded pendant. */
+  shape?: Shape3D;
 };
 
 const cache = new Map<string, Promise<CharmModel>>();
@@ -109,6 +113,66 @@ function buildSphere(): THREE.SphereGeometry {
   return g;
 }
 
+function distToSeg(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const l2 = dx * dx + dy * dy;
+  let t = l2 > 0 ? ((px - x1) * dx + (py - y1) * dy) / l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+/** Inflate the outline into a rounded 3D bead (front + back domes meeting at the
+ *  rim), with the photo planar-projected — a "puffy" shaped bead (e.g. a heart)
+ *  that reads as volume like the sphere, not a flat coin. */
+function buildPuff(points: [number, number][]): THREE.BufferGeometry {
+  const shape = new THREE.Shape();
+  points.forEach(([x, y], i) => (i ? shape.lineTo(x, y) : shape.moveTo(x, y)));
+  shape.closePath();
+  const flat = new THREE.ShapeGeometry(shape, 18);
+  const p = flat.attributes.position!;
+  const idx = Array.from(flat.index!.array);
+  const V = p.count;
+
+  // Distance of each vertex to the outline → dome height (0 at edge, max centre).
+  const dn = new Float32Array(V);
+  let maxD = 0;
+  for (let i = 0; i < V; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    let d = Infinity;
+    for (let k = 0; k < points.length; k++) {
+      const a = points[k]!, b = points[(k + 1) % points.length]!;
+      d = Math.min(d, distToSeg(x, y, a[0], a[1], b[0], b[1]));
+    }
+    dn[i] = d;
+    if (d > maxD) maxD = d;
+  }
+  const PUFF = 0.4;
+  const dome = (t: number) => PUFF * Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t)));
+
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const index: number[] = [];
+  for (const sign of [1, -1]) {
+    const base = pos.length / 3;
+    for (let i = 0; i < V; i++) {
+      const x = p.getX(i), y = p.getY(i);
+      pos.push(x, y, sign * dome(maxD > 0 ? dn[i]! / maxD : 0));
+      uv.push(x + 0.5, y + 0.5);
+    }
+    for (let i = 0; i < idx.length; i += 3) {
+      // Front keeps winding; back is flipped so its normals face outward.
+      if (sign > 0) index.push(base + idx[i]!, base + idx[i + 1]!, base + idx[i + 2]!);
+      else index.push(base + idx[i]!, base + idx[i + 2]!, base + idx[i + 1]!);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(index);
+  g.computeVertexNormals();
+  return g;
+}
+
 export function getCharmModel(name: string): Promise<CharmModel> {
   let promise = cache.get(name);
   if (!promise) {
@@ -117,11 +181,14 @@ export function getCharmModel(name: string): Promise<CharmModel> {
         fetch(`/charms/${name}.json`).then((r) => r.json() as Promise<Contour>),
         loadTexture(`/charms/${name}.png`),
       ]);
-      const isSphere = contour.shape === "sphere";
-      const geometry = isSphere
-        ? buildSphere()
-        : buildGeometry(contour.points, contour.anchor);
-      return { geometry, texture, isSphere };
+      const shape = contour.shape ?? "extrude";
+      const geometry =
+        shape === "sphere"
+          ? buildSphere()
+          : shape === "puff"
+            ? buildPuff(contour.points)
+            : buildGeometry(contour.points, contour.anchor);
+      return { geometry, texture, isBead: shape !== "extrude" };
     })();
     cache.set(name, promise);
   }

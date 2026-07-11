@@ -339,8 +339,8 @@ export function ComponentMesh({
       {isCharm ? (
         photoName ? (
           photoModel &&
-          (photoModel.isSphere ? (
-            // Round bead charm: a sphere with the photo wrapped on it.
+          (photoModel.isBead ? (
+            // Volumetric bead charm (sphere/puff): the photo wrapped on it.
             <mesh geometry={photoModel.geometry} scale={beadRadius * 2.2}>
               <meshStandardMaterial
                 map={photoModel.texture}
