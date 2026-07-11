@@ -17,10 +17,8 @@ import { AR_TUNING, PoseSmoother, type ArPose } from "@/lib/ar/pose";
 /** Shared, mutable target the detection loop writes and the renderer reads. */
 export type PoseTarget = { raw: ArPose | null };
 
-// Stable-roll reference: the ring's local +Z is pointed along this (projected
-// onto the ring plane) so the beaded arc faces the camera and never spins as
-// the forearm axis moves. REF_ALT avoids the degeneracy when axis ∥ REF.
-const REF = new THREE.Vector3(0, 0, 1);
+// Fallback roll reference when the primary one (the knuckle direction) is
+// degenerate (parallel to the ring axis).
 const REF_ALT = new THREE.Vector3(0, 1, 0);
 
 function prefersReducedMotion() {
@@ -64,6 +62,7 @@ export function ArBracelet({
   const wasVisible = useRef(false);
   const opacity = useRef(0);
   const forearmAxis = useRef(new THREE.Vector3());
+  const rollRef = useRef(new THREE.Vector3());
   const ringX = useRef(new THREE.Vector3());
   const ringZ = useRef(new THREE.Vector3());
   const basis = useRef(new THREE.Matrix4());
@@ -93,13 +92,17 @@ export function ArBracelet({
       const scale = layout.radiusUnits > 0 ? pose.radius / layout.radiusUnits : 0;
       g.scale.setScalar(scale);
 
-      // Ring normal = the measured 3D forearm axis — the ring plane stays 90° to
-      // the forearm (no fake camera tilt). Build a target orientation with STABLE
-      // roll (local +Y → axis; local +Z → a fixed reference projected onto the
-      // ring plane) so the beaded arc never spins as the axis moves.
+      // Ring normal = the axis toward the knuckles (local +Y → axis), so the band
+      // stays perpendicular to the forearm. Roll the ring using that same
+      // knuckle direction (the normal's screen projection) so the charm/front
+      // faces the knuckles rather than spinning freely.
       const axis = forearmAxis.current.set(pose.ax, pose.ay, pose.az).normalize();
-      const ref = Math.abs(axis.dot(REF)) > 0.9 ? REF_ALT : REF;
-      ringX.current.crossVectors(ref, axis).normalize();
+      rollRef.current.set(pose.ax, pose.ay, 0);
+      if (rollRef.current.lengthSq() < 1e-6) rollRef.current.copy(REF_ALT);
+      rollRef.current.normalize();
+      ringX.current.crossVectors(rollRef.current, axis);
+      if (ringX.current.lengthSq() < 1e-6) ringX.current.crossVectors(REF_ALT, axis);
+      ringX.current.normalize();
       ringZ.current.crossVectors(axis, ringX.current).normalize();
       basis.current.makeBasis(ringX.current, axis, ringZ.current);
       quatTarget.current.setFromRotationMatrix(basis.current);

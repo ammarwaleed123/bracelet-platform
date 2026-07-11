@@ -64,9 +64,11 @@ export type Viewport = {
   mirrored: boolean;
 };
 
-// Landmark indices we rely on (MediaPipe hand model).
+// Landmark indices we rely on (MediaPipe hand model — MCP = knuckle joints).
 const WRIST = 0;
 const INDEX_MCP = 5;
+const MIDDLE_MCP = 9;
+const RING_MCP = 13;
 const PINKY_MCP = 17;
 
 /**
@@ -103,48 +105,38 @@ export function computeRawPose(
   if (!image || image.length <= PINKY_MCP) return null;
 
   const wrist = landmarkToWorld(image[WRIST]!, vp);
-  const pIndex = landmarkToWorld(image[INDEX_MCP]!, vp);
-  const pPinky = landmarkToWorld(image[PINKY_MCP]!, vp);
+  const p5 = landmarkToWorld(image[INDEX_MCP]!, vp);
+  const p9 = landmarkToWorld(image[MIDDLE_MCP]!, vp);
+  const p13 = landmarkToWorld(image[RING_MCP]!, vp);
+  const p17 = landmarkToWorld(image[PINKY_MCP]!, vp);
 
-  // Across-the-wrist direction from the knuckle line (index-MCP → pinky-MCP).
-  // The bracelet's long axis spans this. The knuckle line is stable even for a
-  // clenched fist — unlike wrist→middle-MCP, which points up out of the fist and
-  // rotated the band the wrong way.
-  let axx = pPinky.x - pIndex.x;
-  let axy = pPinky.y - pIndex.y;
-  const breadth = Math.hypot(axx, axy) || 1;
-  axx /= breadth;
-  axy /= breadth;
+  // Direction from the WRIST to the CENTRE OF THE KNUCKLES. This is the bracelet
+  // axis: the charm (centre point) faces along it toward the knuckles, and the
+  // band lies perpendicular to it (across the wrist). This is what stays correct
+  // as the arm rotates (vertical arm → horizontal band, and vice-versa).
+  const kcx = (p5.x + p9.x + p13.x + p17.x) / 4;
+  const kcy = (p5.y + p9.y + p13.y + p17.y) / 4;
+  let kx = kcx - wrist.x;
+  let ky = kcy - wrist.y;
+  const kLen = Math.hypot(kx, ky) || 1;
+  kx /= kLen;
+  ky /= kLen;
 
+  // Scale from the knuckle breadth (index-MCP → pinky-MCP), stable for a fist.
+  const breadth = Math.hypot(p17.x - p5.x, p17.y - p5.y) || 1;
   const radius = breadth * tuning.scaleMultiplier;
 
-  // Forearm direction toward the elbow = knuckle midpoint → wrist, extended.
-  const kx = (pIndex.x + pPinky.x) / 2;
-  const ky = (pIndex.y + pPinky.y) / 2;
-  let fex = wrist.x - kx;
-  let fey = wrist.y - ky;
-  const feLen = Math.hypot(fex, fey) || 1;
-  fex /= feLen;
-  fey /= feLen;
-
-  // Sit the ring at the wrist, nudged toward the elbow where a bracelet rests.
+  // Sit the ring at the wrist, nudged toward the elbow (away from the knuckles).
   const off = radius * tuning.anchorForearmShift;
-  const x = wrist.x + fex * off;
-  const y = wrist.y + fey * off;
+  const x = wrist.x - kx * off;
+  const y = wrist.y - ky * off;
 
-  // Ring normal: its screen projection is perpendicular to the across-line — so
-  // the beads span ACROSS the wrist (the ellipse's long axis) — pointing toward
-  // the elbow; plus a consistent depth tilt so the ring reads as a foreshortened
-  // ellipse (a worn bracelet), the same in every arm position.
-  let nx = -axy;
-  let ny = axx;
-  if (nx * fex + ny * fey < 0) {
-    nx = -nx;
-    ny = -ny;
-  }
+  // Ring normal: screen projection points toward the knuckles (kx,ky), plus a
+  // consistent depth tilt so the ring reads as a foreshortened ellipse. The band
+  // therefore spans perpendicular to the knuckle direction = across the wrist.
   const tilt = (tuning.wrapTiltDeg * Math.PI) / 180;
   const inPlane = Math.cos(tilt);
-  return { visible: true, x, y, radius, ax: nx * inPlane, ay: ny * inPlane, az: Math.sin(tilt) };
+  return { visible: true, x, y, radius, ax: kx * inPlane, ay: ky * inPlane, az: Math.sin(tilt) };
 }
 
 /* --------------------------------------------------------- One-Euro ------ */
