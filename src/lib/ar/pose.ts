@@ -15,9 +15,9 @@ export const AR_TUNING = {
   smoothingMinCutoff: 1.2,
   /** One-Euro speed coefficient: higher = less lag on fast motion. */
   smoothingBeta: 0.02,
-  /** Bracelet ring radius vs. the wrist→index-MCP distance. Tuned so the ring
+  /** Bracelet ring radius vs. the knuckle-breadth reference. Tuned so the ring
    *  sits snug on the wrist rather than engulfing the whole hand. */
-  scaleMultiplier: 0.35,
+  scaleMultiplier: 0.5,
   /** Pitch the ring out of the screen plane so it reads as a 3D band (deg). */
   ringTiltOffsetDeg: 32,
   /** Slide the anchor along the wrist; negative sits it toward the forearm
@@ -57,8 +57,9 @@ export type Viewport = {
 
 // Landmark indices we rely on (MediaPipe hand model).
 const WRIST = 0;
-const INDEX_MCP = 5;
 const MIDDLE_MCP = 9;
+const INDEX_MCP = 5;
+const PINKY_MCP = 17;
 
 /**
  * Map a landmark (normalized to the raw video frame) into the AR canvas's
@@ -99,10 +100,11 @@ export function computeRawPose(
   tuning: ArTuning,
   prevAngle: number
 ): ArPose | null {
-  if (!landmarks || landmarks.length <= MIDDLE_MCP) return null;
+  if (!landmarks || landmarks.length <= PINKY_MCP) return null;
   const wrist = landmarks[WRIST]!;
-  const indexMcp = landmarks[INDEX_MCP]!;
   const middleMcp = landmarks[MIDDLE_MCP]!;
+  const indexMcp = landmarks[INDEX_MCP]!;
+  const pinkyMcp = landmarks[PINKY_MCP]!;
 
   const anchor = landmarkToWorld(wrist, vp);
   const toMiddle = landmarkToWorld(middleMcp, vp);
@@ -112,8 +114,9 @@ export function computeRawPose(
   while (angle - prevAngle > Math.PI) angle -= Math.PI * 2;
   while (angle - prevAngle < -Math.PI) angle += Math.PI * 2;
 
-  // Scale reference: wrist → index-MCP distance (≈ wrist breadth).
-  const boneLen = worldDist(wrist, indexMcp, vp);
+  // Scale reference: knuckle breadth (index-MCP → pinky-MCP). This is far more
+  // stable than palm length as the hand tilts, and tracks wrist width well.
+  const boneLen = worldDist(indexMcp, pinkyMcp, vp);
   const radius = boneLen * tuning.scaleMultiplier;
 
   // Nudge the anchor up the wrist toward the fingers a touch.
