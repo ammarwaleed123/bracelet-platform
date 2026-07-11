@@ -20,7 +20,7 @@ const GOLD = "#B08D57";
 // Real photo-charms (each has /charms/<slug>.png + .json).
 const PHOTO_CHARMS = [
   { slug: "starlight-heart", name: "Starlight Heart", meaning: "A whole universe of love.", diameterMm: "11.0", egp: 130, sortOrder: 1 },
-  { slug: "pink-pave", name: "Pink Pavé", meaning: "A little blush of sparkle.", diameterMm: "11.0", egp: 150, sortOrder: 2 },
+  { slug: "pink-pave", name: "Pink Pavé", meaning: "A little blush of sparkle.", diameterMm: "7.0", egp: 150, sortOrder: 2 },
 ];
 
 // Earlier low-res grid charms to hide.

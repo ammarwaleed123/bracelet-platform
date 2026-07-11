@@ -5,7 +5,9 @@
  */
 import Jimp from "jimp";
 
-const [, , INPUT, SLUG, MAX = "640"] = process.argv;
+// mode: "auto" hangs from the detected bail hole; "center" threads through the
+// middle (for round bead/ball charms).
+const [, , INPUT, SLUG, MAX = "640", MODE = "auto"] = process.argv;
 const OUT = "public/charms";
 const maxDim = Number(MAX);
 
@@ -181,9 +183,19 @@ async function main() {
   const s = 1 / Math.max(w, h);
   const norm = ([x, y]: [number, number]) => [(x - w / 2) * s, (h / 2 - y) * s] as [number, number];
   const points = simp.map(norm);
-  // Attachment point (bail hole), in the same normalized space, so the studio
-  // can hang the charm from the loop instead of skewering its centre.
-  const anchor = norm(findBailAnchor(img));
+  // Attachment point in the same normalized space: the bail hole (so the charm
+  // hangs from its loop), or the shape centre for round bead/ball charms.
+  let anchor: [number, number];
+  if (MODE === "center") {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [x, y] of points) {
+      if (x < minX) minX = x; if (y < minY) minY = y;
+      if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    }
+    anchor = [(minX + maxX) / 2, (minY + maxY) / 2];
+  } else {
+    anchor = norm(findBailAnchor(img));
+  }
   await fs.writeFile(`${OUT}/${SLUG}.json`, JSON.stringify({ points, aspect: w / h, anchor }));
   await rasterize(simp, w, h, `${OUT}/${SLUG}-outline.png`);
   console.log(`  ✓ ${SLUG}: ${w}x${h}, ${points.length} pts, anchor [${anchor.map((v) => v.toFixed(2)).join(", ")}]`);
