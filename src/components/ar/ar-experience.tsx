@@ -98,12 +98,7 @@ export function ArExperience({
             videoH: video.videoHeight,
             mirrored: facingRef.current === "user",
           };
-          poseRef.current.raw = computeRawPose(
-            frame.image,
-            frame.world,
-            vp,
-            AR_TUNING
-          );
+          poseRef.current.raw = computeRawPose(frame.image, vp, AR_TUNING);
         } else {
           poseRef.current.raw = null;
         }

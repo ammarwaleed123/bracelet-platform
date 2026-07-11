@@ -24,9 +24,11 @@ export const AR_TUNING = {
   /** Orientation slerp factor per 1/60 s (frame-rate corrected in the renderer).
    *  Lower = calmer/laggier, higher = snappier. */
   orientSlerp: 0.4,
-  /** Corrects the world-landmark depth sign (+1 or −1). Flip once on-device if
-   *  the band tips the wrong way toward/away from the camera. */
-  axisZSign: -1,
+  /** Consistent tilt of the ring toward the camera (deg) so the band always
+   *  reads as a WRAP (an arc curving over the wrist), the same in every arm
+   *  position — instead of a dead-flat edge-on line. Browser depth is too noisy
+   *  to drive this per-frame, so it's a stable constant. Bigger = more open. */
+  wrapTiltDeg: 30,
   /** Invisible wrist occluder radius vs. the ring radius. Hides the back half
    *  of the bracelet behind the wrist so it wraps like a real bracelet. Larger
    *  = more of the bracelet hidden (thicker apparent wrist), leaving mainly the
@@ -46,8 +48,8 @@ export type ArPose = {
   y: number;
   /** Target ring radius in world units. */
   radius: number;
-  /** Forearm axis in camera space (three.js coords: +x right, +y up, +z toward
-   *  camera). The ring wraps around this; its 3D tilt tracks the real wrist. */
+  /** Ring normal in camera space (three.js coords: +x right, +y up, +z toward
+   *  camera): the forearm's screen direction plus a consistent wrap tilt. */
   ax: number;
   ay: number;
   az: number;
@@ -67,7 +69,6 @@ export type Viewport = {
 const WRIST = 0;
 const INDEX_MCP = 5;
 const MIDDLE_MCP = 9;
-const RING_MCP = 13;
 const PINKY_MCP = 17;
 
 /**
@@ -105,7 +106,6 @@ function worldDist(a: Landmark, b: Landmark, vp: Viewport) {
  */
 export function computeRawPose(
   image: Landmark[] | undefined,
-  world: Landmark[] | undefined,
   vp: Viewport,
   tuning: ArTuning
 ): ArPose | null {
@@ -128,52 +128,24 @@ export function computeRawPose(
   const x = anchor.x + (toMiddle.x - anchor.x) * shift;
   const y = anchor.y + (toMiddle.y - anchor.y) * shift;
 
-  // The ring normal = the forearm axis, as a genuine unit 3D vector:
-  //  • screen direction (ux,uy) from the reliable 2D image landmarks — this
-  //    guarantees the band lines up with the visible arm (reading the screen
-  //    direction from world landmarks is what flipped it face-on before);
-  //  • depth az from the world landmarks (true toward/away-camera pitch).
-  // Arm across frame → az≈0 → edge-on band; arm at camera → |az|→1 → circle.
+  // Ring normal = the forearm axis:
+  //  • screen direction (ux,uy) from the reliable 2D image landmarks, so the
+  //    band stays perpendicular to (and follows) the visible arm;
+  //  • a CONSISTENT tilt toward the camera (`wrapTiltDeg`) so it always reads as
+  //    a wrap (an arc over the wrist), identical in every arm position. Browser
+  //    depth is too noisy to drive this per-frame without the band flickering
+  //    between a flat line and a hoop.
   let ux = toMiddle.x - anchor.x;
   let uy = toMiddle.y - anchor.y;
   const ulen = Math.hypot(ux, uy) || 1;
   ux /= ulen;
   uy /= ulen;
 
-  const az = clamp(forearmDepth(world, tuning), -0.98, 0.98);
-  const inPlane = Math.sqrt(Math.max(0, 1 - az * az));
+  const tilt = (tuning.wrapTiltDeg * Math.PI) / 180;
+  const inPlane = Math.cos(tilt);
+  const az = Math.sin(tilt);
 
   return { visible: true, x, y, radius, ax: ux * inPlane, ay: uy * inPlane, az };
-}
-
-/**
- * Normalized depth (z-component) of the forearm axis from the metric world
- * landmarks: the axis runs from the knuckle centroid (avg MCP 5/9/13) to the
- * wrist. MediaPipe world is x-right, y-DOWN, smaller z = closer to camera; we
- * only need the z-ratio here, so the whole coordinate mapping reduces to the
- * single `axisZSign` flip (three.js +z is toward the camera). Mirror-invariant.
- */
-function forearmDepth(world: Landmark[] | undefined, tuning: ArTuning): number {
-  if (!world || world.length <= PINKY_MCP) return 0;
-  const w0 = world[WRIST]!;
-  let mx = 0;
-  let my = 0;
-  let mz = 0;
-  for (const i of [INDEX_MCP, MIDDLE_MCP, RING_MCP]) {
-    const w = world[i]!;
-    mx += w.x;
-    my += w.y;
-    mz += w.z;
-  }
-  const dx = w0.x - mx / 3;
-  const dy = w0.y - my / 3;
-  const dz = w0.z - mz / 3;
-  const len = Math.hypot(dx, dy, dz) || 1;
-  return (dz / len) * tuning.axisZSign;
-}
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, v));
 }
 
 /* --------------------------------------------------------- One-Euro ------ */
