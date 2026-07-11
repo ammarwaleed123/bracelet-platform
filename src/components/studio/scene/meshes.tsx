@@ -224,13 +224,16 @@ export function ComponentMesh({
     const draggingFree =
       dragUidRef.current === resolved.uid && dragPointRef.current != null;
 
-    // Full billboard: turn the whole piece so its front face points directly at
-    // the camera at every angle (up is kept ~world-vertical, so it never rolls).
-    // It always reads perfectly front-on and never appears to rotate or tilt —
-    // like a decal pinned to the view. Called in every branch below, once the
-    // group's position settles.
+    // Yaw-billboard: spin the piece around its vertical axis so its front face
+    // always points at the camera; its upright hanging pose is preserved. The
+    // camera moves smoothly, so tracking it directly reads as smooth (setting
+    // the absolute yaw each frame — the ±π wrap is the same orientation, so no
+    // snap). Called in every branch below, once the group's position settles.
     const faceCamera = () => {
-      g.lookAt(state.camera.position);
+      g.rotation.y = Math.atan2(
+        state.camera.position.x - g.position.x,
+        state.camera.position.z - g.position.z
+      );
     };
 
     // A dragged bead pops a touch as it lifts off the ring.
