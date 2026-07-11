@@ -17,10 +17,10 @@ export const AR_TUNING = {
   smoothingBeta: 0.02,
   /** Bracelet ring radius vs. the knuckle-breadth reference. Tuned so the ring
    *  sits snug on the wrist rather than engulfing the whole hand. */
-  scaleMultiplier: 0.42,
+  scaleMultiplier: 0.4,
   /** Fixed pitch that opens the band toward the camera so it reads as a 3D
    *  band on TOP of the wrist rather than an edge-on line (deg). */
-  ringTiltOffsetDeg: 16,
+  ringTiltOffsetDeg: 14,
   /** How much the band tilts with the wrist pointing toward/away from camera.
    *  Bounded so the ring can never flip to face the camera. 0 = ignore depth. */
   depthResponse: 0.5,
@@ -29,8 +29,9 @@ export const AR_TUNING = {
   anchorForearmShift: -0.08,
   /** Invisible wrist occluder radius vs. the ring radius. Hides the back half
    *  of the bracelet behind the wrist so it wraps like a real bracelet. Larger
-   *  = more of the bracelet hidden (thicker apparent wrist). */
-  occluderRadiusFactor: 0.82,
+   *  = more of the bracelet hidden (thicker apparent wrist), leaving mainly the
+   *  front arc over the top of the wrist. */
+  occluderRadiusFactor: 0.9,
   /** Detection cadence; render runs at display refresh and interpolates. */
   detectionFps: 26,
 };
