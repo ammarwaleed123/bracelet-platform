@@ -17,10 +17,18 @@ config({ path: ".env.local" });
 
 const GOLD = "#B08D57";
 
-// Real photo-charms (each has /charms/<slug>.png + .json).
-const PHOTO_CHARMS = [
-  { slug: "starlight-heart", name: "Starlight Heart", meaning: "A whole universe of love.", diameterMm: "11.0", egp: 130, sortOrder: 1 },
-  { slug: "pink-pave", name: "Pink Pavé", meaning: "A little blush of sparkle.", diameterMm: "7.0", egp: 150, sortOrder: 2 },
+// Two locked-in presets for photo-charms:
+//   charm (pendant)  → 11mm, processed with `auto`   → hangs from its bail loop.
+//   bead  (round)    → 7mm,  processed with `center` → threads through the middle.
+const SIZE = { charm: "11.0", bead: "7.0" } as const;
+
+// Real photo-charms (each has /charms/<slug>.png + .json). `kind` sets the size.
+const PHOTO_CHARMS: {
+  slug: string; name: string; meaning: string;
+  kind: keyof typeof SIZE; egp: number; sortOrder: number;
+}[] = [
+  { slug: "starlight-heart", name: "Starlight Heart", meaning: "A whole universe of love.", kind: "charm", egp: 130, sortOrder: 1 },
+  { slug: "pink-pave", name: "Pink Pavé", meaning: "A little blush of sparkle.", kind: "bead", egp: 150, sortOrder: 2 },
 ];
 
 // Earlier low-res grid charms to hide.
@@ -42,7 +50,7 @@ async function main() {
       colorHex: GOLD,
       finish: "metallic" as const,
       charmShape: "custom" as const,
-      diameterMm: c.diameterMm,
+      diameterMm: SIZE[c.kind],
       priceInPiastres: Math.round(c.egp * 100),
       imageUrl: `/charms/${c.slug}.png`,
       stockQuantity: 60,
