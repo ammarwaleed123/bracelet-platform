@@ -41,7 +41,6 @@ export function ArExperience({
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number>(0);
   const facingRef = useRef<Facing>("environment");
-  const prevAngleRef = useRef(0);
   const lastDetectRef = useRef(0);
   const handPresentRef = useRef(false);
 
@@ -90,8 +89,8 @@ export function ArExperience({
       const interval = 1000 / AR_TUNING.detectionFps;
       if (now - lastDetectRef.current >= interval) {
         lastDetectRef.current = now;
-        const landmarks = tracker.detect(video, now);
-        if (landmarks) {
+        const frame = tracker.detect(video, now);
+        if (frame) {
           const vp = {
             containerW: container.clientWidth,
             containerH: container.clientHeight,
@@ -99,13 +98,16 @@ export function ArExperience({
             videoH: video.videoHeight,
             mirrored: facingRef.current === "user",
           };
-          const raw = computeRawPose(landmarks, vp, AR_TUNING, prevAngleRef.current);
-          if (raw) prevAngleRef.current = raw.angle;
-          poseRef.current.raw = raw;
+          poseRef.current.raw = computeRawPose(
+            frame.image,
+            frame.world,
+            vp,
+            AR_TUNING
+          );
         } else {
           poseRef.current.raw = null;
         }
-        const present = !!landmarks;
+        const present = !!frame;
         if (present !== handPresentRef.current) {
           handPresentRef.current = present;
           setHandPresent(present);

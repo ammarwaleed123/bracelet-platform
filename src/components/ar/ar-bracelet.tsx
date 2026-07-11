@@ -59,6 +59,7 @@ export function ArBracelet({
   const wasVisible = useRef(false);
   const opacity = useRef(0);
   const forearmAxis = useRef(new THREE.Vector3());
+  const tiltAxis = useRef(new THREE.Vector3());
   const quat = useRef(new THREE.Quaternion());
 
   // Inert drag refs so the reused ComponentMesh runs with no studio behavior.
@@ -84,13 +85,17 @@ export function ArBracelet({
       const scale = layout.radiusUnits > 0 ? pose.radius / layout.radiusUnits : 0;
       g.scale.setScalar(scale);
 
-      // Ring axis → forearm direction, pitched toward the camera to open the
-      // ellipse so the band reads as 3D rather than edge-on.
+      // Ring axis = the measured 3D forearm axis, so the band's tilt tracks the
+      // real wrist as the hand moves. A small extra pitch (about the axis's
+      // screen-perpendicular) lifts the front so it sits on top of the wrist.
+      forearmAxis.current.set(pose.ax, pose.ay, pose.az).normalize();
       const tilt = (AR_TUNING.ringTiltOffsetDeg * Math.PI) / 180;
-      const ct = Math.cos(tilt);
-      forearmAxis.current
-        .set(Math.cos(pose.angle) * ct, Math.sin(pose.angle) * ct, Math.sin(tilt))
-        .normalize();
+      if (tilt !== 0) {
+        tiltAxis.current
+          .set(-forearmAxis.current.y, forearmAxis.current.x, 0)
+          .normalize();
+        forearmAxis.current.applyAxisAngle(tiltAxis.current, tilt).normalize();
+      }
       quat.current.setFromUnitVectors(UP, forearmAxis.current);
       g.quaternion.copy(quat.current);
 

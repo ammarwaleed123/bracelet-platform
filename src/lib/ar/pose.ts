@@ -18,8 +18,10 @@ export const AR_TUNING = {
   /** Bracelet ring radius vs. the knuckle-breadth reference. Tuned so the ring
    *  sits snug on the wrist rather than engulfing the whole hand. */
   scaleMultiplier: 0.5,
-  /** Pitch the ring out of the screen plane so it reads as a 3D band (deg). */
-  ringTiltOffsetDeg: 32,
+  /** Extra pitch on top of the measured wrist orientation (deg). Small values
+   *  lift the band's front so it sits on TOP of the wrist. 0 = follow the hand
+   *  exactly. */
+  ringTiltOffsetDeg: 12,
   /** Slide the anchor along the wrist; negative sits it toward the forearm
    *  (below the wrist crease) rather than up onto the hand. */
   anchorForearmShift: -0.08,
@@ -39,10 +41,13 @@ export type ArPose = {
   visible: boolean;
   x: number;
   y: number;
-  /** In-plane forearm angle (radians), continuous/unwrapped for smoothing. */
-  angle: number;
   /** Target ring radius in world units. */
   radius: number;
+  /** Forearm axis in camera space (three.js coords: +x right, +y up, +z toward
+   *  camera). The ring wraps around this; its 3D tilt tracks the real wrist. */
+  ax: number;
+  ay: number;
+  az: number;
 };
 
 /** DOM-derived mapping needed to place raw landmarks into world space. */
@@ -90,41 +95,47 @@ function worldDist(a: Landmark, b: Landmark, vp: Viewport) {
 }
 
 /**
- * Build the raw (unsmoothed) pose from one hand's landmarks. `prevAngle` keeps
- * the forearm angle continuous (unwrapped) so the smoother never sees a ±2π
- * jump. Returns null if landmarks are missing.
+ * Build the raw (unsmoothed) pose. Screen anchor + scale come from the 2D image
+ * landmarks; the 3D orientation (so the band tilts with the real wrist) comes
+ * from the metric world landmarks. Returns null if landmarks are missing.
  */
 export function computeRawPose(
-  landmarks: Landmark[] | undefined,
+  image: Landmark[] | undefined,
+  world: Landmark[] | undefined,
   vp: Viewport,
-  tuning: ArTuning,
-  prevAngle: number
+  tuning: ArTuning
 ): ArPose | null {
-  if (!landmarks || landmarks.length <= PINKY_MCP) return null;
-  const wrist = landmarks[WRIST]!;
-  const middleMcp = landmarks[MIDDLE_MCP]!;
-  const indexMcp = landmarks[INDEX_MCP]!;
-  const pinkyMcp = landmarks[PINKY_MCP]!;
+  if (!image || image.length <= PINKY_MCP) return null;
+  if (!world || world.length <= MIDDLE_MCP) return null;
+
+  const wrist = image[WRIST]!;
+  const indexMcp = image[INDEX_MCP]!;
+  const pinkyMcp = image[PINKY_MCP]!;
 
   const anchor = landmarkToWorld(wrist, vp);
-  const toMiddle = landmarkToWorld(middleMcp, vp);
+  const toMiddle = landmarkToWorld(image[MIDDLE_MCP]!, vp);
 
-  // Forearm direction (wrist → middle-MCP), unwrapped near prevAngle.
-  let angle = Math.atan2(toMiddle.y - anchor.y, toMiddle.x - anchor.x);
-  while (angle - prevAngle > Math.PI) angle -= Math.PI * 2;
-  while (angle - prevAngle < -Math.PI) angle += Math.PI * 2;
-
-  // Scale reference: knuckle breadth (index-MCP → pinky-MCP). This is far more
-  // stable than palm length as the hand tilts, and tracks wrist width well.
+  // Scale reference: knuckle breadth (index-MCP → pinky-MCP). Far more stable
+  // than palm length as the hand tilts, and tracks wrist width well.
   const boneLen = worldDist(indexMcp, pinkyMcp, vp);
   const radius = boneLen * tuning.scaleMultiplier;
 
-  // Nudge the anchor up the wrist toward the fingers a touch.
+  // Nudge the anchor along the wrist (negative = toward the forearm).
   const shift = tuning.anchorForearmShift;
   const x = anchor.x + (toMiddle.x - anchor.x) * shift;
   const y = anchor.y + (toMiddle.y - anchor.y) * shift;
 
-  return { visible: true, x, y, angle, radius };
+  // Forearm axis in 3D from the metric world landmarks (wrist → middle-MCP),
+  // converted to three.js camera space: MediaPipe world is x-right, y-DOWN, and
+  // smaller z = closer to camera; three is x-right, y-UP, +z toward camera.
+  const w0 = world[WRIST]!;
+  const w9 = world[MIDDLE_MCP]!;
+  let ax = w9.x - w0.x;
+  const ay = -(w9.y - w0.y);
+  const az = -(w9.z - w0.z);
+  if (vp.mirrored) ax = -ax; // front camera is mirrored on screen
+
+  return { visible: true, x, y, radius, ax, ay, az };
 }
 
 /* --------------------------------------------------------- One-Euro ------ */
@@ -174,12 +185,16 @@ class OneEuro {
   }
 }
 
-/** Smooths a full pose (x, y, angle, radius) with independent One-Euro filters. */
+/** Smooths a full pose (position, radius, and 3D axis) with One-Euro filters.
+ *  Smoothing the axis components then normalizing keeps orientation continuous
+ *  with no angle wraparound to worry about. */
 export class PoseSmoother {
   private fx = new OneEuro(1, 0);
   private fy = new OneEuro(1, 0);
-  private fa = new OneEuro(1, 0);
   private fr = new OneEuro(1, 0);
+  private fax = new OneEuro(1, 0);
+  private fay = new OneEuro(1, 0);
+  private faz = new OneEuro(1, 0);
 
   smooth(raw: ArPose, tSeconds: number, tuning: ArTuning): ArPose {
     const { smoothingMinCutoff: mc, smoothingBeta: b } = tuning;
@@ -187,8 +202,10 @@ export class PoseSmoother {
       visible: true,
       x: this.fx.filter(raw.x, tSeconds, mc, b),
       y: this.fy.filter(raw.y, tSeconds, mc, b),
-      angle: this.fa.filter(raw.angle, tSeconds, mc, b),
       radius: this.fr.filter(raw.radius, tSeconds, mc, b),
+      ax: this.fax.filter(raw.ax, tSeconds, mc, b),
+      ay: this.fay.filter(raw.ay, tSeconds, mc, b),
+      az: this.faz.filter(raw.az, tSeconds, mc, b),
     };
   }
 
@@ -196,7 +213,9 @@ export class PoseSmoother {
   reset() {
     this.fx.reset();
     this.fy.reset();
-    this.fa.reset();
     this.fr.reset();
+    this.fax.reset();
+    this.fay.reset();
+    this.faz.reset();
   }
 }

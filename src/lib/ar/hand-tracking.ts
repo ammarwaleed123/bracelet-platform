@@ -11,10 +11,19 @@ const MODEL_PATH = "/mediapipe/hand_landmarker.task";
 // mapping is unaffected by this resolution.
 const DETECT_MAX = 256;
 
+/** One frame of detection: 2D image landmarks (for screen placement) + 3D
+ *  metric world landmarks (for orientation). */
+export type HandFrame = { image: Landmark[]; world: Landmark[] };
+
 export class HandTracker {
   // Loosely typed: the class shape comes from the dynamically-imported module.
-  private landmarker: { detectForVideo: (input: HTMLCanvasElement, t: number) => { landmarks?: Landmark[][] }; close: () => void } | null =
-    null;
+  private landmarker: {
+    detectForVideo: (
+      input: HTMLCanvasElement,
+      t: number
+    ) => { landmarks?: Landmark[][]; worldLandmarks?: Landmark[][] };
+    close: () => void;
+  } | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
 
@@ -31,9 +40,9 @@ export class HandTracker {
     this.ctx = this.canvas.getContext("2d");
   }
 
-  /** Detect on the current video frame; returns the first hand's landmarks or
-   *  null. `tMs` must be monotonically increasing (performance.now()). */
-  detect(video: HTMLVideoElement, tMs: number): Landmark[] | null {
+  /** Detect on the current video frame; returns the first hand's 2D + 3D
+   *  landmarks or null. `tMs` must be monotonically increasing. */
+  detect(video: HTMLVideoElement, tMs: number): HandFrame | null {
     if (!this.landmarker || !this.canvas || !this.ctx) return null;
     if (!video.videoWidth || !video.videoHeight) return null;
 
@@ -45,8 +54,10 @@ export class HandTracker {
     this.ctx.drawImage(video, 0, 0, w, h);
 
     const result = this.landmarker.detectForVideo(this.canvas, tMs);
-    const hand = result.landmarks?.[0];
-    return hand && hand.length > 0 ? hand : null;
+    const image = result.landmarks?.[0];
+    const world = result.worldLandmarks?.[0];
+    if (!image || image.length === 0 || !world || world.length === 0) return null;
+    return { image, world };
   }
 
   close(): void {
