@@ -35,6 +35,7 @@ export type ResolvedComponent = {
   finish: StudioBead["finish"];
   charmShape?: StudioCharm["charmShape"];
   letterValue?: string | null;
+  imageUrl: string | null;
   material: StudioBead["material3dParams"];
 };
 
@@ -56,6 +57,7 @@ export function resolveComponent(
       priceInPiastres: b.priceInPiastres,
       stockQuantity: b.stockQuantity,
       finish: b.finish,
+      imageUrl: b.imageUrl,
       material: b.material3dParams,
     };
   }
@@ -74,6 +76,7 @@ export function resolveComponent(
     finish: "metallic",
     charmShape: c.charmShape,
     letterValue: c.letterValue,
+    imageUrl: c.imageUrl,
     material: c.material3dParams,
   };
 }
