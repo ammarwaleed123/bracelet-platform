@@ -217,12 +217,24 @@ export function ComponentMesh({
   const yRef = useRef(0); // vertical lift, damped back to 0 when not dragging
   const scaleRef = useRef(0); // start small so beads gently spring in
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const g = group.current;
     if (!g) return;
     const dt = animate ? Math.min(delta, 0.045) : 1;
     const draggingFree =
       dragUidRef.current === resolved.uid && dragPointRef.current != null;
+
+    // Yaw-billboard: spin the piece around its vertical axis so its front face
+    // always points at the camera; its upright hanging pose is preserved. The
+    // camera moves smoothly, so tracking it directly reads as smooth (setting
+    // the absolute yaw each frame — the ±π wrap is the same orientation, so no
+    // snap). Called in every branch below, once the group's position settles.
+    const faceCamera = () => {
+      g.rotation.y = Math.atan2(
+        state.camera.position.x - g.position.x,
+        state.camera.position.z - g.position.z
+      );
+    };
 
     // A dragged bead pops a touch as it lifts off the ring.
     const targetScale = draggingFree ? 1.12 : selected ? 1.06 : 1;
@@ -244,6 +256,7 @@ export function ComponentMesh({
       angleRef.current = Math.atan2(g.position.z, g.position.x);
       radiusRef.current = Math.hypot(g.position.x, g.position.z);
       yRef.current = g.position.y;
+      faceCamera();
       return;
     }
 
@@ -280,6 +293,7 @@ export function ComponentMesh({
       yRef.current,
       Math.sin(angleRef.current) * radiusRef.current
     );
+    faceCamera();
   });
 
   const beadRadius = componentRadiusUnits(resolved.diameterMm);
