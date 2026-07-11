@@ -68,7 +68,6 @@ export type Viewport = {
 const WRIST = 0;
 const INDEX_MCP = 5;
 const MIDDLE_MCP = 9;
-const RING_MCP = 13;
 const PINKY_MCP = 17;
 
 /**
@@ -107,17 +106,14 @@ export function computeRawPose(
   const wrist = landmarkToWorld(image[WRIST]!, vp);
   const p5 = landmarkToWorld(image[INDEX_MCP]!, vp);
   const p9 = landmarkToWorld(image[MIDDLE_MCP]!, vp);
-  const p13 = landmarkToWorld(image[RING_MCP]!, vp);
   const p17 = landmarkToWorld(image[PINKY_MCP]!, vp);
 
-  // Direction from the WRIST to the CENTRE OF THE KNUCKLES. This is the bracelet
-  // axis: the charm (centre point) faces along it toward the knuckles, and the
-  // band lies perpendicular to it (across the wrist). This is what stays correct
-  // as the arm rotates (vertical arm → horizontal band, and vice-versa).
-  const kcx = (p5.x + p9.x + p13.x + p17.x) / 4;
-  const kcy = (p5.y + p9.y + p13.y + p17.y) / 4;
-  let kx = kcx - wrist.x;
-  let ky = kcy - wrist.y;
+  // Direction from the WRIST to the MIDDLE-FINGER knuckle (MCP 9). This is the
+  // bracelet axis: the charm (centre point) faces along it toward that knuckle,
+  // and the band lies perpendicular to it (across the wrist). This is what stays
+  // correct as the arm rotates (vertical arm → horizontal band, and vice-versa).
+  let kx = p9.x - wrist.x;
+  let ky = p9.y - wrist.y;
   const kLen = Math.hypot(kx, ky) || 1;
   kx /= kLen;
   ky /= kLen;
