@@ -24,11 +24,11 @@ export const AR_TUNING = {
   /** Orientation slerp factor per 1/60 s (frame-rate corrected in the renderer).
    *  Lower = calmer/laggier, higher = snappier. */
   orientSlerp: 0.4,
-  /** Consistent tilt of the ring toward the camera (deg) so the band always
-   *  reads as a WRAP (an arc curving over the wrist), the same in every arm
-   *  position — instead of a dead-flat edge-on line. Browser depth is too noisy
-   *  to drive this per-frame, so it's a stable constant. Bigger = more open. */
-  wrapTiltDeg: 30,
+  /** Consistent tilt of the ring toward the camera (deg). LOW keeps the beads a
+   *  near-straight band crossing the wrist (a worn-bracelet strap); higher curls
+   *  it into a crescent/hoop. Depth is too noisy to drive this per-frame, so
+   *  it's a stable constant that reads the same in every arm position. */
+  wrapTiltDeg: 8,
   /** Invisible wrist occluder radius vs. the ring radius. Hides the back half
    *  of the bracelet behind the wrist so it wraps like a real bracelet. Larger
    *  = more of the bracelet hidden (thicker apparent wrist), leaving mainly the
