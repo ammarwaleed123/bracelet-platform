@@ -113,10 +113,12 @@ export function ArBracelet({
         g.quaternion.slerp(quatTarget.current, s);
       }
 
-      // Size the invisible wrist occluder (hides the bracelet's back half).
+      // Size the invisible wrist occluder (hides the bracelet's back half); 0
+      // disables it so the full ellipse loop shows.
       if (occluderRef.current) {
         const f = AR_TUNING.occluderRadiusFactor;
-        occluderRef.current.scale.set(f, 1, f);
+        occluderRef.current.visible = f > 0;
+        if (f > 0) occluderRef.current.scale.set(f, 1, f);
       }
     }
 

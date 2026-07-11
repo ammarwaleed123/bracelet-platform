@@ -15,7 +15,7 @@ const FIELDS: { key: Key; label: string; min: number; max: number; step: number 
     { key: "orientSlerp", label: "Orientation smoothing", min: 0.05, max: 1, step: 0.05 },
     { key: "wrapTiltDeg", label: "Wrap tilt (deg)", min: 0, max: 60, step: 1 },
     { key: "anchorForearmShift", label: "Anchor shift", min: -0.3, max: 0.5, step: 0.02 },
-    { key: "occluderRadiusFactor", label: "Wrist cover", min: 0.4, max: 1.1, step: 0.02 },
+    { key: "occluderRadiusFactor", label: "Wrist cover", min: 0, max: 1.1, step: 0.02 },
     { key: "detectionFps", label: "Detection FPS", min: 12, max: 60, step: 1 },
   ];
 

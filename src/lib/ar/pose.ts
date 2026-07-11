@@ -18,22 +18,21 @@ export const AR_TUNING = {
   /** Bracelet ring radius vs. the knuckle-breadth reference. Tuned so the ring
    *  sits snug on the wrist rather than engulfing the whole hand. */
   scaleMultiplier: 0.4,
-  /** Slide the anchor along the wrist; negative sits it toward the forearm
-   *  (below the wrist crease) rather than up onto the hand. */
-  anchorForearmShift: -0.08,
+  /** Slide the anchor toward the elbow (× ring radius) so it rests where a
+   *  bracelet sits, just below the wrist bone rather than up on the hand. */
+  anchorForearmShift: 0.4,
   /** Orientation slerp factor per 1/60 s (frame-rate corrected in the renderer).
    *  Lower = calmer/laggier, higher = snappier. */
   orientSlerp: 0.4,
-  /** Consistent tilt of the ring toward the camera (deg). LOW keeps the beads a
-   *  near-straight band crossing the wrist (a worn-bracelet strap); higher curls
-   *  it into a crescent/hoop. Depth is too noisy to drive this per-frame, so
-   *  it's a stable constant that reads the same in every arm position. */
-  wrapTiltDeg: 8,
-  /** Invisible wrist occluder radius vs. the ring radius. Hides the back half
-   *  of the bracelet behind the wrist so it wraps like a real bracelet. Larger
-   *  = more of the bracelet hidden (thicker apparent wrist), leaving mainly the
-   *  front arc over the top of the wrist. */
-  occluderRadiusFactor: 0.9,
+  /** Consistent tilt of the ring toward the camera (deg): sets how open the
+   *  bracelet ELLIPSE is. ~20° gives a foreshortened ~3:1 ellipse (a worn
+   *  bracelet wrapping the wrist); 0 = edge-on line, 90 = face-on circle. Stable
+   *  constant (depth is too noisy to drive per-frame), same in every position. */
+  wrapTiltDeg: 20,
+  /** Invisible wrist occluder radius vs. the ring radius. 0 disables it so the
+   *  FULL bracelet ellipse (the whole loop) shows — matching a worn-bracelet
+   *  preview. Raise it to hide the back of the ring behind the wrist instead. */
+  occluderRadiusFactor: 0,
   /** Detection cadence; render runs at display refresh and interpolates. */
   detectionFps: 26,
 };
@@ -68,7 +67,6 @@ export type Viewport = {
 // Landmark indices we rely on (MediaPipe hand model).
 const WRIST = 0;
 const INDEX_MCP = 5;
-const MIDDLE_MCP = 9;
 const PINKY_MCP = 17;
 
 /**
@@ -92,13 +90,6 @@ function landmarkToWorld(l: Landmark, vp: Viewport) {
   return { x: worldX, y: worldY };
 }
 
-/** World-space distance between two landmarks. */
-function worldDist(a: Landmark, b: Landmark, vp: Viewport) {
-  const pa = landmarkToWorld(a, vp);
-  const pb = landmarkToWorld(b, vp);
-  return Math.hypot(pa.x - pb.x, pa.y - pb.y);
-}
-
 /**
  * Build the raw (unsmoothed) pose. Screen anchor + scale come from the 2D image
  * landmarks; the 3D orientation (so the band tilts with the real wrist) comes
@@ -111,41 +102,49 @@ export function computeRawPose(
 ): ArPose | null {
   if (!image || image.length <= PINKY_MCP) return null;
 
-  const wrist = image[WRIST]!;
-  const indexMcp = image[INDEX_MCP]!;
-  const pinkyMcp = image[PINKY_MCP]!;
+  const wrist = landmarkToWorld(image[WRIST]!, vp);
+  const pIndex = landmarkToWorld(image[INDEX_MCP]!, vp);
+  const pPinky = landmarkToWorld(image[PINKY_MCP]!, vp);
 
-  const anchor = landmarkToWorld(wrist, vp);
-  const toMiddle = landmarkToWorld(image[MIDDLE_MCP]!, vp);
+  // Across-the-wrist direction from the knuckle line (index-MCP → pinky-MCP).
+  // The bracelet's long axis spans this. The knuckle line is stable even for a
+  // clenched fist — unlike wrist→middle-MCP, which points up out of the fist and
+  // rotated the band the wrong way.
+  let axx = pPinky.x - pIndex.x;
+  let axy = pPinky.y - pIndex.y;
+  const breadth = Math.hypot(axx, axy) || 1;
+  axx /= breadth;
+  axy /= breadth;
 
-  // Scale reference: knuckle breadth (index-MCP → pinky-MCP). Far more stable
-  // than palm length as the hand tilts, and tracks wrist width well.
-  const boneLen = worldDist(indexMcp, pinkyMcp, vp);
-  const radius = boneLen * tuning.scaleMultiplier;
+  const radius = breadth * tuning.scaleMultiplier;
 
-  // Nudge the anchor along the wrist (negative = toward the forearm).
-  const shift = tuning.anchorForearmShift;
-  const x = anchor.x + (toMiddle.x - anchor.x) * shift;
-  const y = anchor.y + (toMiddle.y - anchor.y) * shift;
+  // Forearm direction toward the elbow = knuckle midpoint → wrist, extended.
+  const kx = (pIndex.x + pPinky.x) / 2;
+  const ky = (pIndex.y + pPinky.y) / 2;
+  let fex = wrist.x - kx;
+  let fey = wrist.y - ky;
+  const feLen = Math.hypot(fex, fey) || 1;
+  fex /= feLen;
+  fey /= feLen;
 
-  // Ring normal = the forearm axis:
-  //  • screen direction (ux,uy) from the reliable 2D image landmarks, so the
-  //    band stays perpendicular to (and follows) the visible arm;
-  //  • a CONSISTENT tilt toward the camera (`wrapTiltDeg`) so it always reads as
-  //    a wrap (an arc over the wrist), identical in every arm position. Browser
-  //    depth is too noisy to drive this per-frame without the band flickering
-  //    between a flat line and a hoop.
-  let ux = toMiddle.x - anchor.x;
-  let uy = toMiddle.y - anchor.y;
-  const ulen = Math.hypot(ux, uy) || 1;
-  ux /= ulen;
-  uy /= ulen;
+  // Sit the ring at the wrist, nudged toward the elbow where a bracelet rests.
+  const off = radius * tuning.anchorForearmShift;
+  const x = wrist.x + fex * off;
+  const y = wrist.y + fey * off;
 
+  // Ring normal: its screen projection is perpendicular to the across-line — so
+  // the beads span ACROSS the wrist (the ellipse's long axis) — pointing toward
+  // the elbow; plus a consistent depth tilt so the ring reads as a foreshortened
+  // ellipse (a worn bracelet), the same in every arm position.
+  let nx = -axy;
+  let ny = axx;
+  if (nx * fex + ny * fey < 0) {
+    nx = -nx;
+    ny = -ny;
+  }
   const tilt = (tuning.wrapTiltDeg * Math.PI) / 180;
   const inPlane = Math.cos(tilt);
-  const az = Math.sin(tilt);
-
-  return { visible: true, x, y, radius, ax: ux * inPlane, ay: uy * inPlane, az };
+  return { visible: true, x, y, radius, ax: nx * inPlane, ay: ny * inPlane, az: Math.sin(tilt) };
 }
 
 /* --------------------------------------------------------- One-Euro ------ */
