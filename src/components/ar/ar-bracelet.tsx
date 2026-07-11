@@ -54,6 +54,7 @@ export function ArBracelet({
   );
 
   const groupRef = useRef<THREE.Group>(null);
+  const occluderRef = useRef<THREE.Mesh>(null);
   const smoother = useRef(new PoseSmoother());
   const wasVisible = useRef(false);
   const opacity = useRef(0);
@@ -92,6 +93,12 @@ export function ArBracelet({
         .normalize();
       quat.current.setFromUnitVectors(UP, forearmAxis.current);
       g.quaternion.copy(quat.current);
+
+      // Size the invisible wrist occluder (hides the bracelet's back half).
+      if (occluderRef.current) {
+        const f = AR_TUNING.occluderRadiusFactor;
+        occluderRef.current.scale.set(f, 1, f);
+      }
     }
 
     // Fade in/out with detection presence (never freeze visibly mid-air).
@@ -99,10 +106,14 @@ export function ArBracelet({
     const k = animate ? Math.min(1, delta * 8) : 1;
     opacity.current += (target - opacity.current) * k;
     g.visible = opacity.current > 0.01;
+    const fading = opacity.current < 0.99;
     g.traverse((o) => {
+      // The occluder is a depth-only mask — never fade or recolor it.
+      if (o.name === "ar-occluder") return;
       const mat = (o as THREE.Mesh).material as THREE.Material | undefined;
       if (mat && "opacity" in mat) {
-        mat.transparent = true;
+        mat.transparent = fading;
+        mat.depthWrite = !fading;
         (mat as THREE.Material & { opacity: number }).opacity = opacity.current;
       }
     });
@@ -110,6 +121,14 @@ export function ArBracelet({
 
   return (
     <group ref={groupRef} visible={false}>
+      {/* Invisible forearm occluder: writes depth but no color, so the back
+          half of the bracelet is hidden behind the wrist (fakes occlusion). */}
+      <mesh ref={occluderRef} name="ar-occluder" renderOrder={-1}>
+        <cylinderGeometry
+          args={[layout.radiusUnits, layout.radiusUnits, layout.radiusUnits * 8, 28, 1, true]}
+        />
+        <meshBasicMaterial colorWrite={false} />
+      </mesh>
       <BaseRing base={base} radius={layout.radiusUnits} />
       {resolved.map((c, i) => (
         <ComponentMesh

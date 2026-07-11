@@ -23,6 +23,10 @@ export const AR_TUNING = {
   /** Slide the anchor along the wrist; negative sits it toward the forearm
    *  (below the wrist crease) rather than up onto the hand. */
   anchorForearmShift: -0.08,
+  /** Invisible wrist occluder radius vs. the ring radius. Hides the back half
+   *  of the bracelet behind the wrist so it wraps like a real bracelet. Larger
+   *  = more of the bracelet hidden (thicker apparent wrist). */
+  occluderRadiusFactor: 0.82,
   /** Detection cadence; render runs at display refresh and interpolates. */
   detectionFps: 26,
 };
