@@ -31,6 +31,7 @@ const PHOTO_CHARMS: {
   { slug: "pink-pave", name: "Pink Pavé", meaning: "A little blush of sparkle.", kind: "bead", egp: 150, sortOrder: 2 },
   { slug: "love-locks", name: "Love Locks", meaning: "Two hearts, locked as one.", kind: "charm", egp: 185, sortOrder: 3 },
   { slug: "crowned-heart", name: "Crowned Heart", meaning: "A little royalty for your wrist.", kind: "bead", egp: 160, sortOrder: 4 },
+  { slug: "amber-pumpkin", name: "Amber Pumpkin", meaning: "A little autumn magic.", kind: "charm", egp: 175, sortOrder: 5 },
 ];
 
 // The earlier low-res grid charms — remove them entirely (no longer wanted).
