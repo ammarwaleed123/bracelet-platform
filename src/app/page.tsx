@@ -25,8 +25,39 @@ export default async function HomePage() {
       {/* ------------------------------------------------ cinematic intro -- */}
       <CinematicIntro beads={heroBeads} />
 
+      {/* --------- featured gallery: the first thing after the intro ------ */}
+      {grid.length > 0 && (
+        <div className="border-t border-border bg-linen/50">
+          <Container className="py-20">
+            <Reveal>
+              <p className="label-caps">{home.featured.eyebrow}</p>
+              <h2 className="mt-3 font-serif text-4xl text-ink">
+                {home.featured.title}
+              </h2>
+              <p className="mt-2 max-w-md text-ink-soft">
+                {home.featured.subhead}
+              </p>
+            </Reveal>
+            <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {grid.map((item, i) => (
+                <Reveal key={item.id} delay={i * 80}>
+                  <DesignCard item={{ ...item, liked: false } as GalleryItem} />
+                </Reveal>
+              ))}
+            </div>
+            <Reveal className="mt-10 text-center">
+              <Button asChild variant="outline" size="lg">
+                <Link href={home.featured.cta.href}>
+                  {home.featured.cta.label}
+                </Link>
+              </Button>
+            </Reveal>
+          </Container>
+        </div>
+      )}
+
       {/* --------------------------------------------------- value props -- */}
-      <div className="border-y border-border bg-linen/60">
+      <div className="border-y border-border">
         <Container className="grid gap-8 py-14 sm:grid-cols-3">
           {home.valueProps.map((prop, i) => {
             const Icon = VALUE_ICONS[i] ?? Palette;
@@ -71,37 +102,6 @@ export default async function HomePage() {
           ))}
         </div>
       </Container>
-
-      {/* ---------------------------------------------------- featured -- */}
-      {grid.length > 0 && (
-        <div className="border-t border-border bg-linen/50">
-          <Container className="py-20">
-            <Reveal>
-              <p className="label-caps">{home.featured.eyebrow}</p>
-              <h2 className="mt-3 font-serif text-4xl text-ink">
-                {home.featured.title}
-              </h2>
-              <p className="mt-2 max-w-md text-ink-soft">
-                {home.featured.subhead}
-              </p>
-            </Reveal>
-            <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {grid.map((item, i) => (
-                <Reveal key={item.id} delay={i * 80}>
-                  <DesignCard item={{ ...item, liked: false } as GalleryItem} />
-                </Reveal>
-              ))}
-            </div>
-            <Reveal className="mt-10 text-center">
-              <Button asChild variant="outline" size="lg">
-                <Link href={home.featured.cta.href}>
-                  {home.featured.cta.label}
-                </Link>
-              </Button>
-            </Reveal>
-          </Container>
-        </div>
-      )}
 
       {/* ----------------------------------------------------- closing -- */}
       <div className="bg-ink">
