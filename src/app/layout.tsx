@@ -3,8 +3,10 @@ import { Fraunces, Inter } from "next/font/google";
 
 import { site } from "@/content/site";
 import { getCartCount } from "@/lib/cart/cart";
+import { getCurrentUser } from "@/lib/auth/guards";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ConditionalFooter } from "@/components/layout/conditional-footer";
+import { SignupPromo } from "@/components/layout/signup-promo";
 import { MobileCartBar } from "@/components/cart/mobile-cart-bar";
 import "./globals.css";
 
@@ -53,6 +55,8 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   // Only the item count (a single cheap query) — no per-item price recompute.
   const cartCount = await getCartCount();
+  // Free: getCartCount already resolved (and cached) the current user.
+  const user = await getCurrentUser();
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       {/* suppressHydrationWarning: browser extensions inject attributes on
@@ -64,6 +68,7 @@ export default async function RootLayout({
         </main>
         <ConditionalFooter />
         <MobileCartBar count={cartCount} />
+        {!user && <SignupPromo />}
       </body>
     </html>
   );
