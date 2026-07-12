@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, type RefObject } from "react";
+import { Suspense, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 import type { ResolvedComponent } from "@/lib/studio/derive";
@@ -185,6 +186,31 @@ function smoothDampScalar(
   return goal + (change + temp) * exp;
 }
 
+/* ------------------------------------------------------- real 3D model --- */
+
+/** A real 3D charm loaded from a `.glb`: scaled so its longest side is
+ *  `targetSize` scene units, and hung from its top so it dangles from the ring
+ *  point. Unlike photo charms it is NOT billboarded — orbiting the bracelet
+ *  reveals its genuine sides and back. Geometry/materials are shared across
+ *  instances (three's clone), so multiple copies stay cheap. */
+function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
+  const { scene } = useGLTF(url);
+  const object = useMemo(() => {
+    const clone = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    // Move the model's top-centre to the origin so it hangs from the ring point.
+    clone.position.set(-center.x, -box.max.y, -center.z);
+    const wrapper = new THREE.Group();
+    wrapper.add(clone);
+    wrapper.scale.setScalar(targetSize / maxDim);
+    return wrapper;
+  }, [scene, targetSize]);
+  return <primitive object={object} />;
+}
+
 /* --------------------------------------------------- component (mesh) ---- */
 
 export function ComponentMesh({
@@ -216,6 +242,13 @@ export function ComponentMesh({
   const radiusVel = useRef(0);
   const yRef = useRef(0); // vertical lift, damped back to 0 when not dragging
   const scaleRef = useRef(0); // start small so beads gently spring in
+
+  // A real 3D model charm (.glb) hangs on the ring but is NOT billboarded, so
+  // orbiting the bracelet reveals its real sides and back.
+  const isModel =
+    resolved.kind === "charm" &&
+    !!resolved.imageUrl &&
+    /\.glb$/i.test(resolved.imageUrl);
 
   useFrame((state, delta) => {
     const g = group.current;
@@ -256,7 +289,7 @@ export function ComponentMesh({
       angleRef.current = Math.atan2(g.position.z, g.position.x);
       radiusRef.current = Math.hypot(g.position.x, g.position.z);
       yRef.current = g.position.y;
-      faceCamera();
+      if (!isModel) faceCamera();
       return;
     }
 
@@ -293,7 +326,7 @@ export function ComponentMesh({
       yRef.current,
       Math.sin(angleRef.current) * radiusRef.current
     );
-    faceCamera();
+    if (!isModel) faceCamera();
   });
 
   const beadRadius = componentRadiusUnits(resolved.diameterMm);
@@ -351,7 +384,11 @@ export function ComponentMesh({
       }}
     >
       {isCharm ? (
-        photoName ? (
+        isModel ? (
+          <Suspense fallback={null}>
+            <GlbCharm url={resolved.imageUrl!} targetSize={beadRadius * 2.2} />
+          </Suspense>
+        ) : photoName ? (
           photoModel &&
           (photoModel.isBead ? (
             // Volumetric bead charm (sphere/puff): the photo wrapped on it.
