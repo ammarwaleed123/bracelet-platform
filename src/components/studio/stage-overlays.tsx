@@ -32,25 +32,26 @@ export function StageOverlays({ catalog }: { catalog: StudioCatalog }) {
 
   return (
     <>
-      {/* Info card — compact; hidden mid-drag to keep the stage calm. */}
+      {/* Info card — compact on mobile, larger on laptop/desktop. Hidden
+          mid-drag to keep the stage calm. */}
       {!dragging && (
-        <div className="pointer-events-none absolute bottom-4 left-4 max-w-[11rem]">
-          <div className="pointer-events-auto rounded-lg border border-border bg-card/95 px-2.5 py-1.5 shadow-soft backdrop-blur">
-            <div className="flex items-center gap-1.5">
+        <div className="pointer-events-none absolute bottom-4 left-4 max-w-[11rem] md:max-w-[16rem]">
+          <div className="pointer-events-auto rounded-lg border border-border bg-card/95 px-2.5 py-1.5 shadow-soft backdrop-blur md:rounded-2xl md:px-4 md:py-3">
+            <div className="flex items-center gap-1.5 md:gap-2">
               <span
-                className="size-2.5 shrink-0 rounded-full border border-black/10"
+                className="size-2.5 shrink-0 rounded-full border border-black/10 md:size-3.5"
                 style={{ backgroundColor: selected.colorHex }}
                 aria-hidden
               />
-              <p className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
+              <p className="min-w-0 flex-1 truncate text-xs font-medium text-ink md:text-sm">
                 {selected.name}
               </p>
-              <span className="shrink-0 pl-1 text-[10px] text-ink-soft">
+              <span className="shrink-0 pl-1 text-[10px] text-ink-soft md:text-xs">
                 {formatPrice(selected.priceInPiastres)}
               </span>
             </div>
             {selected.meaning && (
-              <p className="mt-0.5 line-clamp-1 text-[10px] leading-snug text-ink-soft">
+              <p className="mt-0.5 line-clamp-1 text-[10px] leading-snug text-ink-soft md:mt-1.5 md:line-clamp-none md:text-xs md:leading-relaxed">
                 {selected.meaning}
               </p>
             )}
