@@ -230,6 +230,11 @@ function findLoopAttachY(root: THREE.Object3D, box: THREE.Box3): number {
   return box.max.y - (attachSlice / SLICES) * H;
 }
 
+// Models whose bail confuses the auto-detector keep a known-good hang fraction
+// (height below the top where the bracelet threads). Everything else auto-detects.
+// keyheart's long bail sits too low under auto-detection, so pin it.
+const HANG_OVERRIDE: Record<string, number> = { keyheart: 0.18 };
+
 function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
   const { scene } = useGLTF(url);
   const object = useMemo(() => {
@@ -241,7 +246,12 @@ function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
     // Hang from the middle of its loop, centred in x/z.
-    clone.position.set(-center.x, -findLoopAttachY(clone, box), -center.z);
+    const name = /\/([a-z0-9_-]+)\.glb$/i.exec(url)?.[1] ?? "";
+    const attachY =
+      name in HANG_OVERRIDE
+        ? box.max.y - HANG_OVERRIDE[name]! * size.y
+        : findLoopAttachY(clone, box);
+    clone.position.set(-center.x, -attachY, -center.z);
     const wrapper = new THREE.Group();
     wrapper.add(clone);
     wrapper.scale.setScalar(targetSize / maxDim);
