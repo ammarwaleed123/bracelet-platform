@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, X } from "lucide-react";
@@ -9,8 +9,8 @@ import { signupPrompt } from "@/content/site";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-// Remember dismissal so it never nags. Bump the suffix to re-show it to everyone.
-const DISMISS_KEY = "aurelia:signup-promo-v1";
+// Show once per page load: it reappears every time the site is (re)opened or
+// refreshed, but doesn't re-pop while browsing between pages in one visit.
 const SHOW_DELAY_MS = 1200;
 
 // Redundant where the visitor is already signing in / creating an account.
@@ -22,16 +22,18 @@ const ANCHOR_ID = "account-nav-trigger";
 type Anchor = { x: number; top: number };
 
 /**
- * A one-time, dismissable card for logged-out visitors that drops down from the
- * header account icon (with a pointer under it) to nudge them to make an account.
- * Rendered only when there's no user (see the root layout). Purely a prompt —
- * the buttons link to the existing auth pages.
+ * A dismissable card for logged-out visitors that drops down from the header
+ * account icon (with a pointer under it) to nudge them to make an account. It
+ * appears each time the site is opened (once per page load). Rendered only when
+ * there's no user (see the root layout). Purely a prompt — the buttons link to
+ * the existing auth pages.
  */
 export function SignupPromo() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false); // in the DOM (animate in/out)
   const [shown, setShown] = useState(false); // entered (drives the transition)
   const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const firedRef = useRef(false); // auto-shown once this page load already?
 
   useEffect(() => {
     if (HIDDEN_ON.some((p) => pathname.startsWith(p))) {
@@ -39,15 +41,12 @@ export function SignupPromo() {
       setOpen(false);
       return;
     }
-    let dismissed = false;
-    try {
-      dismissed = localStorage.getItem(DISMISS_KEY) === "1";
-    } catch {
-      // Private mode / storage disabled — just show it this once.
-    }
-    if (dismissed || open) return;
+    // Auto-show only once per page load — reopening/refreshing the site brings
+    // it back, but navigating between pages in one visit does not re-trigger it.
+    if (firedRef.current || open) return;
 
     const t = setTimeout(() => {
+      firedRef.current = true;
       setOpen(true);
       // Two frames so the element is painted closed before it transitions open.
       requestAnimationFrame(() => requestAnimationFrame(() => setShown(true)));
@@ -74,11 +73,6 @@ export function SignupPromo() {
   }, [open]);
 
   const dismiss = () => {
-    try {
-      localStorage.setItem(DISMISS_KEY, "1");
-    } catch {
-      // ignore
-    }
     setShown(false);
     setTimeout(() => setOpen(false), 250); // let the exit transition finish
   };
