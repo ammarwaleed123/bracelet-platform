@@ -256,7 +256,7 @@ function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
     wrapper.add(clone);
     wrapper.scale.setScalar(targetSize / maxDim);
     return wrapper;
-  }, [scene, targetSize]);
+  }, [scene, targetSize, url]);
   return <primitive object={object} />;
 }
 
