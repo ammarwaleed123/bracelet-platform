@@ -4,6 +4,8 @@ import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Center, useGLTF } from "@react-three/drei";
 
+import { tuneModelMaterials } from "@/lib/studio/charm-model";
+
 /**
  * A tiny live 3D preview of a .glb charm for the picker — model charms have no
  * flat image, so we render the model itself as the thumbnail. Pointer events are
@@ -11,7 +13,11 @@ import { Bounds, Center, useGLTF } from "@react-three/drei";
  */
 function ThumbModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
-  const object = useMemo(() => scene.clone(true), [scene]);
+  const object = useMemo(() => {
+    const clone = scene.clone(true);
+    tuneModelMaterials(clone);
+    return clone;
+  }, [scene]);
   return <primitive object={object} />;
 }
 

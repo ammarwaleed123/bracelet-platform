@@ -39,6 +39,28 @@ export function charmPhotoName(url: string | null | undefined): string | null {
   return m ? m[1]! : null;
 }
 
+/**
+ * Scanned jewellery models often ship fully matte (`roughness = 1`), which reads
+ * dark/black because a rough metal only shows a dim, blurred reflection. Cap the
+ * roughness and boost env reflections so the real material — polished metal,
+ * sparkly pavé — actually shows. Idempotent; safe to call per instance.
+ */
+export function tuneModelMaterials(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of list) {
+      const m = mat as THREE.MeshStandardMaterial;
+      if ("roughness" in m) {
+        m.roughness = Math.min(m.roughness ?? 1, 0.32);
+        m.envMapIntensity = 1.5;
+        m.needsUpdate = true;
+      }
+    }
+  });
+}
+
 async function loadTexture(url: string): Promise<THREE.Texture> {
   const tex = await new THREE.TextureLoader().loadAsync(url);
   tex.colorSpace = THREE.SRGBColorSpace;

@@ -24,7 +24,10 @@ await doc.transform(
   simplify({ simplifier: MeshoptSimplifier, ratio: Number(RATIO), error: 0.0015 }),
   dedup(),
   prune(),
-  textureCompress({ encoder: sharp, targetFormat: "jpeg", resize: [1024, 1024], quality: 85 }),
+  // Resize only — keep each texture's original format/colorspace. Do NOT re-encode
+  // to JPEG: normal + metallic-roughness maps are linear DATA, and JPEG corrupts
+  // them (renders the model dark/wrong). PNG stays lossless.
+  textureCompress({ encoder: sharp, resize: [1024, 1024] }),
 );
 
 await io.write(FILE, doc);

@@ -8,7 +8,7 @@ import * as THREE from "three";
 import type { ResolvedComponent } from "@/lib/studio/derive";
 import { componentRadiusUnits } from "@/lib/studio/derive";
 import { letterTexture, softShadowTexture, stoneTexture } from "@/lib/studio/textures";
-import { charmPhotoName, useCharmModel } from "@/lib/studio/charm-model";
+import { charmPhotoName, tuneModelMaterials, useCharmModel } from "@/lib/studio/charm-model";
 import type { StudioBase } from "@/lib/studio/types";
 
 const GOLD = "#b08d57";
@@ -202,6 +202,7 @@ function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
   const { scene } = useGLTF(url);
   const object = useMemo(() => {
     const clone = scene.clone(true);
+    tuneModelMaterials(clone);
     const box = new THREE.Box3().setFromObject(clone);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
@@ -295,7 +296,8 @@ export function ComponentMesh({
       angleRef.current = Math.atan2(g.position.z, g.position.x);
       radiusRef.current = Math.hypot(g.position.x, g.position.z);
       yRef.current = g.position.y;
-      if (!isModel) faceCamera();
+      if (isModel) g.rotation.y = Math.PI / 2 - angleRef.current;
+      else faceCamera();
       return;
     }
 
@@ -332,7 +334,8 @@ export function ComponentMesh({
       yRef.current,
       Math.sin(angleRef.current) * radiusRef.current
     );
-    if (!isModel) faceCamera();
+    if (isModel) g.rotation.y = Math.PI / 2 - angleRef.current;
+    else faceCamera();
   });
 
   const beadRadius = componentRadiusUnits(resolved.diameterMm);
