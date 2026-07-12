@@ -32,23 +32,25 @@ export function StageOverlays({ catalog }: { catalog: StudioCatalog }) {
 
   return (
     <>
-      {/* Info card — hidden mid-drag to keep the stage calm. */}
+      {/* Info card — compact; hidden mid-drag to keep the stage calm. */}
       {!dragging && (
-        <div className="pointer-events-none absolute bottom-4 left-4 max-w-[16rem]">
-          <div className="pointer-events-auto rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-soft backdrop-blur">
-            <div className="flex items-center gap-2">
+        <div className="pointer-events-none absolute bottom-4 left-4 max-w-[11rem]">
+          <div className="pointer-events-auto rounded-lg border border-border bg-card/95 px-2.5 py-1.5 shadow-soft backdrop-blur">
+            <div className="flex items-center gap-1.5">
               <span
-                className="size-3.5 rounded-full border border-black/10"
+                className="size-2.5 shrink-0 rounded-full border border-black/10"
                 style={{ backgroundColor: selected.colorHex }}
                 aria-hidden
               />
-              <p className="text-sm font-medium text-ink">{selected.name}</p>
-              <span className="ml-auto text-xs text-ink-soft">
+              <p className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
+                {selected.name}
+              </p>
+              <span className="shrink-0 pl-1 text-[10px] text-ink-soft">
                 {formatPrice(selected.priceInPiastres)}
               </span>
             </div>
             {selected.meaning && (
-              <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+              <p className="mt-0.5 line-clamp-1 text-[10px] leading-snug text-ink-soft">
                 {selected.meaning}
               </p>
             )}
