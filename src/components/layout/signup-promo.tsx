@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 
 // Show once per page load: it reappears every time the site is (re)opened or
 // refreshed, but doesn't re-pop while browsing between pages in one visit.
-const SHOW_DELAY_MS = 1200;
+const SHOW_DELAY_MS = 4000;
 
 // Redundant where the visitor is already signing in / creating an account.
 const HIDDEN_ON = ["/sign-in", "/sign-up"];
