@@ -23,9 +23,12 @@ const GOLD = "#B08D57";
 const SIZE = { charm: "11.0", bead: "7.0" } as const;
 
 // Real photo-charms (each has /charms/<slug>.png + .json). `kind` sets the size.
+//   model: true  → a real 3D model charm (/charms/<slug>.glb) instead of a photo;
+//                  `mm` overrides its size (models are often taller than wide).
 const PHOTO_CHARMS: {
   slug: string; name: string; meaning: string;
   kind: keyof typeof SIZE; egp: number; sortOrder: number;
+  model?: boolean; mm?: string;
 }[] = [
   { slug: "starlight-heart", name: "Starlight Heart", meaning: "A whole universe of love.", kind: "charm", egp: 130, sortOrder: 1 },
   { slug: "pink-pave", name: "Pink Pavé", meaning: "A little blush of sparkle.", kind: "bead", egp: 150, sortOrder: 2 },
@@ -33,6 +36,7 @@ const PHOTO_CHARMS: {
   { slug: "crowned-heart", name: "Crowned Heart", meaning: "A little royalty for your wrist.", kind: "bead", egp: 160, sortOrder: 4 },
   { slug: "amber-pumpkin", name: "Amber Pumpkin", meaning: "A little autumn magic.", kind: "charm", egp: 175, sortOrder: 5 },
   { slug: "golden-crown", name: "Golden Crown", meaning: "Wear your crown.", kind: "charm", egp: 165, sortOrder: 6 },
+  { slug: "keyheart", name: "Key to My Heart", meaning: "You hold the key.", kind: "charm", egp: 220, sortOrder: 7, model: true, mm: "14.0" },
 ];
 
 // The earlier low-res grid charms — remove them entirely (no longer wanted).
@@ -52,9 +56,9 @@ async function main() {
       colorHex: GOLD,
       finish: "metallic" as const,
       charmShape: "custom" as const,
-      diameterMm: SIZE[c.kind],
+      diameterMm: c.mm ?? SIZE[c.kind],
       priceInPiastres: Math.round(c.egp * 100),
-      imageUrl: `/charms/${c.slug}.png`,
+      imageUrl: c.model ? `/charms/${c.slug}.glb` : `/charms/${c.slug}.png`,
       stockQuantity: 60,
       isActive: true,
       sortOrder: c.sortOrder,
