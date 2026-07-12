@@ -37,6 +37,7 @@ const PHOTO_CHARMS: {
   { slug: "amber-pumpkin", name: "Amber Pumpkin", meaning: "A little autumn magic.", kind: "charm", egp: 175, sortOrder: 5 },
   { slug: "golden-crown", name: "Golden Crown", meaning: "Wear your crown.", kind: "charm", egp: 165, sortOrder: 6 },
   { slug: "keyheart", name: "Key to My Heart", meaning: "You hold the key.", kind: "charm", egp: 220, sortOrder: 7, model: true, mm: "14.0" },
+  { slug: "silver-crown", name: "Silver Crown", meaning: "Crowned in silver.", kind: "charm", egp: 180, sortOrder: 8, model: true, mm: "12.0" },
 ];
 
 // The earlier low-res grid charms — remove them entirely (no longer wanted).

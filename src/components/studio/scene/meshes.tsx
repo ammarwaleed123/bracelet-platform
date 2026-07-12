@@ -193,23 +193,55 @@ function smoothDampScalar(
  *  point. Unlike photo charms it is NOT billboarded — orbiting the bracelet
  *  reveals its genuine sides and back. Geometry/materials are shared across
  *  instances (three's clone), so multiple copies stay cheap. */
-// Fraction of the model's height, measured down from the top, at which the
-// bracelet threads through the loop — so the charm hangs FROM its loop (the
-// bracelet sits in the loop, body dangling below) rather than from its very tip.
-const MODEL_HANG_FRACTION = 0.18;
+/**
+ * Auto-find where the bracelet should thread through a model: the middle of its
+ * loop. Bins vertices into horizontal slices and measures each slice's radius
+ * from the vertical axis — the loop is the narrow region at the top, ending where
+ * the silhouette widens into the body. So the charm hangs FROM its loop, and new
+ * models work without hand-tuning (as long as they're upright with a loop on top).
+ */
+function findLoopAttachY(root: THREE.Object3D, box: THREE.Box3): number {
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const H = size.y || 1;
+  const SLICES = 48;
+  const sliceR = new Float32Array(SLICES);
+  const p = new THREE.Vector3();
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    const geo = mesh.geometry as THREE.BufferGeometry | undefined;
+    if (!mesh.isMesh || !geo?.attributes.position) return;
+    const pa = geo.attributes.position;
+    for (let i = 0; i < pa.count; i++) {
+      p.fromBufferAttribute(pa, i).applyMatrix4(mesh.matrixWorld);
+      const s = Math.min(SLICES - 1, Math.max(0, Math.floor(((box.max.y - p.y) / H) * SLICES)));
+      const r = Math.hypot(p.x - center.x, p.z - center.z);
+      if (r > sliceR[s]!) sliceR[s] = r;
+    }
+  });
+  let bodyR = 0;
+  for (const r of sliceR) if (r > bodyR) bodyR = r;
+  // First slice (from the top) reaching half the body radius = end of the loop.
+  let neck = 0;
+  for (let s = 0; s < SLICES; s++) {
+    if (sliceR[s]! >= 0.5 * bodyR) { neck = s; break; }
+  }
+  const attachSlice = neck > 0 ? neck * 0.5 : 0.5; // middle of the loop region
+  return box.max.y - (attachSlice / SLICES) * H;
+}
 
 function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
   const { scene } = useGLTF(url);
   const object = useMemo(() => {
     const clone = scene.clone(true);
     tuneModelMaterials(clone);
+    clone.updateWorldMatrix(true, true);
     const box = new THREE.Box3().setFromObject(clone);
-    const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    // Put the loop (a little below the top) on the ring line, centred in x/z.
-    const attachY = box.max.y - MODEL_HANG_FRACTION * size.y;
-    clone.position.set(-center.x, -attachY, -center.z);
+    // Hang from the middle of its loop, centred in x/z.
+    clone.position.set(-center.x, -findLoopAttachY(clone, box), -center.z);
     const wrapper = new THREE.Group();
     wrapper.add(clone);
     wrapper.scale.setScalar(targetSize / maxDim);
