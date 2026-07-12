@@ -16,15 +16,22 @@ const SHOW_DELAY_MS = 1200;
 // Redundant where the visitor is already signing in / creating an account.
 const HIDDEN_ON = ["/sign-in", "/sign-up"];
 
+// The header account icon this card hangs from (see site-header.tsx).
+const ANCHOR_ID = "account-nav-trigger";
+
+type Anchor = { x: number; top: number };
+
 /**
- * A one-time, dismissable popup for logged-out visitors that points them to
- * create an account. Rendered only when there's no user (see the root layout).
- * Purely a prompt — the buttons link to the existing auth pages.
+ * A one-time, dismissable card for logged-out visitors that drops down from the
+ * header account icon (with a pointer under it) to nudge them to make an account.
+ * Rendered only when there's no user (see the root layout). Purely a prompt —
+ * the buttons link to the existing auth pages.
  */
 export function SignupPromo() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false); // in the DOM (animate in/out)
   const [shown, setShown] = useState(false); // entered (drives the transition)
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
 
   useEffect(() => {
     if (HIDDEN_ON.some((p) => pathname.startsWith(p))) {
@@ -48,6 +55,24 @@ export function SignupPromo() {
     return () => clearTimeout(t);
   }, [pathname, open]);
 
+  // Measure the account icon so the card + pointer line up under it, and keep
+  // it aligned as the viewport changes.
+  useEffect(() => {
+    if (!open) return;
+    const measure = () => {
+      const el = document.getElementById(ANCHOR_ID);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setAnchor({ x: r.left + r.width / 2, top: r.bottom + 14 });
+      } else {
+        setAnchor(null);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [open]);
+
   const dismiss = () => {
     try {
       localStorage.setItem(DISMISS_KEY, "1");
@@ -58,46 +83,63 @@ export function SignupPromo() {
     setTimeout(() => setOpen(false), 250); // let the exit transition finish
   };
 
-  // Lock page scroll + close on Escape while visible.
+  // Close on Escape while visible. (No scroll lock — it's an anchored dropdown,
+  // not a blocking modal; the page stays usable behind it.)
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") dismiss();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   if (!open) return null;
 
+  // Fallbacks keep it sensible if the anchor can't be measured for any reason.
+  const cardTop = anchor?.top ?? 72;
+  const caretX =
+    anchor?.x ??
+    (typeof window !== "undefined" ? window.innerWidth - 90 : 320);
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="signup-promo-title"
-      className={cn(
-        "fixed inset-0 z-50 flex items-start justify-center px-4 pt-20 transition-opacity duration-300 ease-out motion-reduce:transition-none sm:pt-24",
-        shown ? "opacity-100" : "opacity-0"
-      )}
-    >
-      {/* Backdrop — click to dismiss. */}
+    <>
+      {/* Light scrim, below the header (z-40) so the header stays crisp while
+          the page dims a little. Click anywhere to dismiss. */}
       <button
         type="button"
         aria-label={signupPrompt.close}
         onClick={dismiss}
-        className="absolute inset-0 -z-10 cursor-default bg-ink/40 backdrop-blur-[2px]"
+        className={cn(
+          "fixed inset-0 z-30 cursor-default bg-ink/20 transition-opacity duration-300 ease-out motion-reduce:transition-none",
+          shown ? "opacity-100" : "opacity-0"
+        )}
+      />
+
+      {/* Pointer, sitting on the card's top edge, centered under the account
+          icon. Decorative — clicks pass through to the card/scrim. */}
+      <span
+        aria-hidden
+        style={{
+          top: cardTop,
+          left: caretX,
+          transform: "translate(-50%, -50%) rotate(45deg)",
+        }}
+        className={cn(
+          "pointer-events-none fixed z-50 size-3 rounded-[2px] border-l border-t border-border bg-card transition-opacity duration-300 ease-out motion-reduce:transition-none",
+          shown ? "opacity-100" : "opacity-0"
+        )}
       />
 
       {/* Card */}
       <div
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="signup-promo-title"
+        style={{ top: cardTop }}
         className={cn(
-          "relative w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-lift transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
-          shown ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
+          "fixed inset-x-4 z-50 rounded-2xl border border-border bg-card p-5 shadow-lift transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none sm:inset-x-auto sm:right-4 sm:w-[22rem]",
+          shown ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
         )}
       >
         <button
@@ -111,12 +153,12 @@ export function SignupPromo() {
 
         <h2
           id="signup-promo-title"
-          className="max-w-[15rem] text-balance font-serif text-2xl leading-tight text-ink"
+          className="max-w-[15rem] text-balance font-serif text-xl leading-tight text-ink"
         >
           {signupPrompt.title}
         </h2>
 
-        <ul className="mt-5 flex flex-col gap-3">
+        <ul className="mt-4 flex flex-col gap-2.5">
           {signupPrompt.points.map((point) => (
             <li
               key={point}
@@ -130,19 +172,19 @@ export function SignupPromo() {
           ))}
         </ul>
 
-        <div className="mt-6 flex flex-col gap-2.5">
-          <Button asChild size="lg" onClick={dismiss}>
+        <div className="mt-5 flex flex-col gap-2.5">
+          <Button asChild onClick={dismiss}>
             <Link href={signupPrompt.createAccount.href}>
               {signupPrompt.createAccount.label}
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg" onClick={dismiss}>
+          <Button asChild variant="outline" onClick={dismiss}>
             <Link href={signupPrompt.signIn.href}>
               {signupPrompt.signIn.label}
             </Link>
           </Button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -57,6 +57,7 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
           <div className="flex items-center gap-1 sm:gap-2">
             <Button asChild variant="ghost" size="icon">
               <Link
+                id="account-nav-trigger"
                 href={accountNav.account.href}
                 aria-label={accountNav.account.label}
               >
