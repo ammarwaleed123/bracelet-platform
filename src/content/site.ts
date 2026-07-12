@@ -42,6 +42,22 @@ export const accountNav = {
   cart: { label: "Cart", href: "/cart" } as NavLink,
 } as const;
 
+/**
+ * One-time popup shown to logged-out visitors. It's purely a prompt: the CTAs
+ * link to the existing sign-up / sign-in pages — no offer, discount, or code.
+ */
+export const signupPrompt = {
+  title: "Design it. Save it. Sell it.",
+  points: [
+    "Save every design you make",
+    "Share it in the community gallery",
+    "Let others buy your designs",
+  ],
+  createAccount: { label: "Create account", href: "/sign-up" } as NavLink,
+  signIn: { label: "Sign in", href: "/sign-in" } as NavLink,
+  close: "Close",
+} as const;
+
 export type FooterColumn = {
   readonly title: string;
   readonly links: readonly NavLink[];
