@@ -193,6 +193,11 @@ function smoothDampScalar(
  *  point. Unlike photo charms it is NOT billboarded — orbiting the bracelet
  *  reveals its genuine sides and back. Geometry/materials are shared across
  *  instances (three's clone), so multiple copies stay cheap. */
+// Fraction of the model's height, measured down from the top, at which the
+// bracelet threads through the loop — so the charm hangs FROM its loop (the
+// bracelet sits in the loop, body dangling below) rather than from its very tip.
+const MODEL_HANG_FRACTION = 0.18;
+
 function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
   const { scene } = useGLTF(url);
   const object = useMemo(() => {
@@ -201,8 +206,9 @@ function GlbCharm({ url, targetSize }: { url: string; targetSize: number }) {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    // Move the model's top-centre to the origin so it hangs from the ring point.
-    clone.position.set(-center.x, -box.max.y, -center.z);
+    // Put the loop (a little below the top) on the ring line, centred in x/z.
+    const attachY = box.max.y - MODEL_HANG_FRACTION * size.y;
+    clone.position.set(-center.x, -attachY, -center.z);
     const wrapper = new THREE.Group();
     wrapper.add(clone);
     wrapper.scale.setScalar(targetSize / maxDim);

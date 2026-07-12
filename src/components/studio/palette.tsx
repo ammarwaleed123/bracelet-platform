@@ -5,6 +5,7 @@ import Image from "next/image";
 
 import { cn, formatPrice } from "@/lib/utils";
 import { useStudioStore } from "@/lib/studio/store";
+import { CharmModelThumb } from "@/components/studio/charm-thumb";
 import { fits, indexCatalog } from "@/lib/studio/derive";
 import type { StudioBead, StudioCatalog, StudioCharm } from "@/lib/studio/types";
 
@@ -172,13 +173,18 @@ function PaletteCard({
     >
       <div className="relative mb-2 aspect-square overflow-hidden rounded-lg">
         {item.imageUrl ? (
-          <Image
-            src={item.imageUrl}
-            alt=""
-            fill
-            unoptimized
-            className="object-cover"
-          />
+          /\.glb$/i.test(item.imageUrl) ? (
+            // Real 3D-model charm: render the model itself as its thumbnail.
+            <CharmModelThumb url={item.imageUrl} />
+          ) : (
+            <Image
+              src={item.imageUrl}
+              alt=""
+              fill
+              unoptimized
+              className="object-cover"
+            />
+          )
         ) : (
           <span
             className="block size-full"
