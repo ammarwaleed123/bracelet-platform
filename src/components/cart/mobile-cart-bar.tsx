@@ -6,7 +6,7 @@ import { ShoppingBag } from "lucide-react";
 
 /**
  * A slim sticky cart bar shown on mobile only, when the cart isn't empty — one
- * tap to checkout. Hidden on the home, cart, checkout and studio pages.
+ * tap to checkout. Hidden on the home, cart, checkout, studio and designer pages.
  */
 export function MobileCartBar({ count }: { count: number }) {
   const pathname = usePathname();
@@ -16,7 +16,8 @@ export function MobileCartBar({ count }: { count: number }) {
     pathname === "/" ||
     pathname.startsWith("/cart") ||
     pathname.startsWith("/checkout") ||
-    pathname.startsWith("/studio");
+    pathname.startsWith("/studio") ||
+    pathname.startsWith("/designer");
   if (hidden) return null;
 
   return (
