@@ -174,18 +174,7 @@ export function StudioShell({
       <aside className="w-full bg-background pb-24 lg:flex lg:h-full lg:w-[380px] lg:flex-col lg:border-l lg:border-border lg:pb-0">
         <div className="space-y-5 p-5 lg:shrink-0">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <p className="font-serif text-lg text-ink">Design</p>
-              {AI_ON && (
-                <Link
-                  href="/designer"
-                  className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold-tint/50 px-2.5 py-1 text-xs font-medium text-gold-strong transition-colors hover:bg-gold-tint"
-                >
-                  <Sparkles className="size-3.5" aria-hidden />
-                  {designer.studioLink}
-                </Link>
-              )}
-            </div>
+            <p className="font-serif text-lg text-ink">Design</p>
             {/* Desktop: actions live in the always-visible rail header. On mobile
                 they move to a fixed bottom bar (below) so they never scroll away. */}
             <div className="hidden items-center gap-2 lg:flex">
@@ -193,6 +182,17 @@ export function StudioShell({
               <AddToCartStudio catalog={catalog} />
             </div>
           </div>
+          {/* "Design with AI" gets its own full-width row so it never crowds the
+              Save / Add-to-cart actions on the narrow rail. */}
+          {AI_ON && (
+            <Link
+              href="/designer"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-gold/30 bg-gold-tint/50 px-3 py-2 text-sm font-medium text-gold-strong transition-colors hover:bg-gold-tint"
+            >
+              <Sparkles className="size-4" aria-hidden />
+              {designer.studioLink}
+            </Link>
+          )}
           <BaseSelector catalog={catalog} />
           <SizeControl catalog={catalog} />
         </div>

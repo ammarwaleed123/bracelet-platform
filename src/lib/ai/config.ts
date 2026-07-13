@@ -24,4 +24,13 @@ export const AI = {
   defaultSizeCm: 18,
   /** A usable generated bracelet needs at least this many components. */
   minComponents: 3,
+  /** Upper guide for a FULL bracelet (beads all the way around an ~18cm wrist). */
+  maxComponents: 24,
+  /**
+   * Budget targeting. Designs should land near the customer's budget: the model
+   * aims for `budgetTargetRatio`+; the validator tops a design up (with its own
+   * beads) if it falls under `budgetFloorRatio` of the budget.
+   */
+  budgetFloorRatio: 0.5,
+  budgetTargetRatio: 0.85,
 } as const;

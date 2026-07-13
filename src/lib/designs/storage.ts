@@ -31,3 +31,27 @@ export async function uploadDesignThumbnail(
   const { data } = admin.storage.from("designs").getPublicUrl(path);
   return `${data.publicUrl}?v=${Date.now()}`;
 }
+
+/**
+ * Upload a server-rendered SVG thumbnail (flat-lay render, no browser) to the
+ * public `designs` bucket and return its public URL. Used when there's no
+ * captured canvas — e.g. AI-designer concepts saved / added to cart.
+ */
+export async function uploadDesignSvgThumbnail(
+  svg: string,
+  designId: string
+): Promise<string | null> {
+  if (!svg) return null;
+  const admin = createAdminClient();
+  const path = `${designId}.svg`;
+  const { error } = await admin.storage
+    .from("designs")
+    .upload(path, Buffer.from(svg), {
+      contentType: "image/svg+xml",
+      upsert: true,
+    });
+  if (error) throw new Error(`Thumbnail upload failed: ${error.message}`);
+
+  const { data } = admin.storage.from("designs").getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}

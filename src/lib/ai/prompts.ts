@@ -14,8 +14,16 @@ Design principles — follow all of them:
 - Colour harmony: choose beads whose colours form one intentional, elegant palette (harmonious, or tastefully contrasting) — never a random rainbow.
 - Meaning coherence: favour stones whose meanings resonate with what the customer says matters to them.
 - Three DISTINCT concepts: the ${AI.designCount} designs must feel meaningfully different from one another — different palettes, moods and structure — not shuffles of the same beads.
-- Budget: the TOTAL price of each design (base + every component) MUST be within the customer's budget. Prices are in EGP.
-- Restraint: a beautiful bracelet is usually 6–14 components. Do not overfill.
+- Budget is a target, not just a ceiling. The TOTAL price of each design (base + every component, in EGP) MUST NOT exceed the customer's budget, and SHOULD land close to it — aim for ${Math.round(
+    AI.budgetTargetRatio * 100
+  )}–100% of the budget, and never below ${Math.round(
+    AI.budgetFloorRatio * 100
+  )}%. For a generous budget, reach it with finer, higher-value stones and an extra charm or two — do not leave most of the budget unspent.
+- Vary the FULLNESS across the three designs so they look different on the wrist:
+  • Make at least ONE a FULL bracelet — beads strung all the way around the wrist. A full ~18cm bracelet needs roughly 18–${AI.maxComponents} beads (their diameters in mm add up to about the wrist size in cm × 10).
+  • Make at least ONE a LIGHTER, half-strung design — a smaller cluster of ${AI.minComponents}–8 focal pieces, leaving the base visible.
+  • The third can sit in between.
+  Reach the budget on a lighter design by choosing more precious stones, not by padding it.
 - Voice: write each design's name (2–4 words) and story (1–2 sentences) in Aurelia's voice — warm, elegant, personal and specific to the actual choices. Never generic marketing.
 
 Return ONLY valid JSON matching the required schema: exactly ${AI.designCount} designs, each with a baseId, a sizeCm, and an ordered components list referencing catalog ids.`;
@@ -70,5 +78,9 @@ ${beads}
 CHARMS:
 ${charms}
 
-Compose ${AI.designCount} distinct bracelets, each within the budget, each using only ids from the lists above. Use sizeCm between ${AI.minSizeCm} and ${AI.maxSizeCm} (default ${AI.defaultSizeCm}).`;
+Compose ${AI.designCount} distinct bracelets using only ids from the lists above. Use sizeCm between ${AI.minSizeCm} and ${AI.maxSizeCm} (default ${AI.defaultSizeCm}). Each total (base + all components) must be ≤ EGP ${egp(
+    input.budgetPiastres
+  )} and ideally ≥ EGP ${egp(
+    Math.round(input.budgetPiastres * AI.budgetTargetRatio)
+  )}. Vary the fullness: at least one full bracelet (beads all the way around) and at least one lighter, half-strung design.`;
 }

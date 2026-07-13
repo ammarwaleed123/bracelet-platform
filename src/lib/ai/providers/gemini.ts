@@ -30,8 +30,22 @@ function isRetryable(err: unknown): boolean {
   );
 }
 
-/** One call → all designs, as strict JSON. Retries transient errors (429/503)
- *  with exponential backoff + jitter; throws AiExhaustedError when they persist. */
+/** A 429 tells us exactly how long to wait (e.g. `retryDelay:"4.24s"` or
+ *  "Please retry in 4.24s"). Honour it so a momentary per-minute rate limit
+ *  self-heals on the next try instead of surfacing the "taking a break" state. */
+function serverRetryMs(err: unknown): number | null {
+  const msg = String((err as { message?: string })?.message ?? "");
+  const m =
+    /"retryDelay"\s*:\s*"([\d.]+)s"/.exec(msg) ??
+    /retry in ([\d.]+)\s*s/i.exec(msg);
+  if (!m) return null;
+  const secs = Number(m[1]);
+  return Number.isFinite(secs) ? Math.ceil(secs * 1000) : null;
+}
+
+/** One call → all designs, as strict JSON. On a transient 429/503 it waits the
+ *  server-requested delay (capped) — plus a small buffer — before retrying, and
+ *  only throws AiExhaustedError once the limit genuinely persists. */
 export async function generateWithGemini(
   input: DesignerInput,
   context: CatalogContext
@@ -62,7 +76,11 @@ export async function generateWithGemini(
       };
     } catch (err) {
       if (isRetryable(err) && attempt < maxAttempts - 1) {
-        await sleep(800 * 2 ** attempt + Math.random() * 400);
+        // Prefer the delay the server asked for (+250ms buffer); fall back to
+        // exponential backoff + jitter. Capped so a request never hangs long.
+        const backoff = 800 * 2 ** attempt + Math.random() * 400;
+        const server = serverRetryMs(err);
+        await sleep(Math.min(10_000, Math.max(server ? server + 250 : 0, backoff)));
         continue;
       }
       if (isRetryable(err)) throw new AiExhaustedError();

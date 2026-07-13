@@ -20,7 +20,11 @@ import {
 } from "@/lib/db/schema";
 import { computeDesignPriceInPiastres } from "@/lib/designs/pricing";
 import { compositionKey } from "@/lib/designs/composition";
-import { uploadDesignThumbnail } from "@/lib/designs/storage";
+import {
+  uploadDesignSvgThumbnail,
+  uploadDesignThumbnail,
+} from "@/lib/designs/storage";
+import { renderDesignThumbnailSvg } from "@/lib/designs/thumbnail";
 
 const componentSchema = z.object({
   kind: z.enum(["bead", "charm"]),
@@ -179,18 +183,25 @@ export async function saveDesign(
     designId = row!.id;
   }
 
-  if (d.thumbnailDataUrl) {
-    try {
-      const url = await uploadDesignThumbnail(d.thumbnailDataUrl, designId);
-      if (url) {
-        await db
-          .update(designs)
-          .set({ thumbnailUrl: url })
-          .where(eq(designs.id, designId));
-      }
-    } catch {
-      // Thumbnail is best-effort; the design still saves without it.
+  // Thumbnail: use the captured studio canvas when we have one; otherwise render
+  // a flat-lay SVG server-side (so AI-designer concepts saved / added to cart
+  // still get a preview instead of "No preview"). Best-effort either way.
+  try {
+    let url: string | null = null;
+    if (d.thumbnailDataUrl) {
+      url = await uploadDesignThumbnail(d.thumbnailDataUrl, designId);
+    } else {
+      const svg = await renderDesignThumbnailSvg(d.baseId, d.components, d.sizeCm);
+      if (svg) url = await uploadDesignSvgThumbnail(svg, designId);
     }
+    if (url) {
+      await db
+        .update(designs)
+        .set({ thumbnailUrl: url })
+        .where(eq(designs.id, designId));
+    }
+  } catch {
+    // Thumbnail is best-effort; the design still saves without it.
   }
 
   revalidatePath("/account");

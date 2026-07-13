@@ -14,19 +14,19 @@ export const designer = {
   meta: {
     title: "AI Designer",
     description:
-      "Answer a few questions and our AI crafts three bracelets, made only from real in-stock pieces — each one editable in the studio.",
+      "Answer a few questions and our AI crafts three bracelets — each one editable in the studio and ready to order.",
   },
   entry: {
     eyebrow: "AI Bracelet Designer",
     title: "Tell us who it's for. We'll design it.",
     subhead:
-      "Answer a few quick questions and our AI designer composes three bracelets — made only from real, in-stock pieces — each one fully editable in the studio.",
+      "Answer a few quick questions and our AI designer composes three bracelets — each one fully editable in the studio.",
     cta: "Start designing",
   },
   homeCta: {
     eyebrow: "New — AI Bracelet Designer",
     title: "Not sure where to start?",
-    body: "Answer a few questions and let our AI design three bracelets just for you — from real, in-stock pieces, ready to make your own.",
+    body: "Answer a few questions and let our AI design three bracelets just for you — ready to make your own.",
     cta: "Try the AI designer",
     href: "/designer",
   },
@@ -121,12 +121,14 @@ export const designer = {
   ] as DesignerStep[],
   budget: {
     question: "What's your budget?",
-    hint: "Per bracelet — we'll stay within it.",
+    hint: "Per bracelet — we'll design close to it.",
     // piastres: 500, 1,000, 2,000, 3,500 EGP
     presets: [50_000, 100_000, 200_000, 350_000],
-    min: 20_000,
+    // 500 EGP floor: the cheapest base + 3 stones already lands here, so every
+    // budget on the slider can yield a real, in-stock bracelet.
+    min: 50_000,
     max: 500_000,
-    step: 5_000,
+    step: 10_000,
     default: 100_000,
   },
   controls: { skip: "Skip", back: "Back", next: "Next", generate: "Design my bracelets" },
@@ -138,7 +140,7 @@ export const designer = {
     eyebrow: "Made for you",
     title: "Three designs to choose from",
     subhead:
-      "Each is built only from real, in-stock pieces. Open one in the studio to make it yours.",
+      "Open one in the studio to make it your own — swap, add, or remove any piece you like.",
     openInStudio: "Open in Studio",
     save: "Save",
     saved: "Saved ✓",

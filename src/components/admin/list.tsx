@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ModelSwatch } from "@/components/admin/model-swatch";
 
 /** List-page header with a title, count, and a "New" action. */
 export function ListHeader({
@@ -48,7 +49,8 @@ export function StockCell({ qty }: { qty: number }) {
   return <span className={cn("tabular-nums", tone)}>{qty}</span>;
 }
 
-/** A component thumbnail: the uploaded image, or a color swatch fallback. */
+/** A component thumbnail: a live 3D render for model (.glb) charms, the uploaded
+ *  image for photo components, or a color swatch fallback. */
 export function Swatch({
   colorHex,
   imageUrl,
@@ -58,6 +60,11 @@ export function Swatch({
   imageUrl?: string | null;
   label: string;
 }) {
+  // Real 3D-model charms store a `.glb` in imageUrl — render the model itself
+  // instead of trying (and failing) to load it as a flat image.
+  if (imageUrl && /\.glb$/i.test(imageUrl)) {
+    return <ModelSwatch url={imageUrl} />;
+  }
   if (imageUrl) {
     return (
       <Image
