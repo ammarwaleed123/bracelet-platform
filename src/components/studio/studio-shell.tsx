@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { nanoid } from "nanoid";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 
+import { designer } from "@/content/designer";
 import { useStudioStore } from "@/lib/studio/store";
 import { indexCatalog } from "@/lib/studio/derive";
 import { loadDraft, saveDraft } from "@/lib/studio/persistence";
@@ -23,6 +25,8 @@ const BraceletCanvas = dynamic(
   () => import("./scene/bracelet-canvas").then((m) => m.BraceletCanvas),
   { ssr: false, loading: () => <StudioLoading /> }
 );
+
+const AI_ON = process.env.NEXT_PUBLIC_FEATURE_AI_DESIGNER === "1";
 
 function isFormField(el: EventTarget | null) {
   return (
@@ -178,6 +182,17 @@ export function StudioShell({
               <AddToCartStudio catalog={catalog} />
             </div>
           </div>
+          {/* "Design with AI" gets its own full-width row so it never crowds the
+              Save / Add-to-cart actions on the narrow rail. */}
+          {AI_ON && (
+            <Link
+              href="/designer"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-gold/30 bg-gold-tint/50 px-3 py-2 text-sm font-medium text-gold-strong transition-colors hover:bg-gold-tint"
+            >
+              <Sparkles className="size-4" aria-hidden />
+              {designer.studioLink}
+            </Link>
+          )}
           <BaseSelector catalog={catalog} />
           <SizeControl catalog={catalog} />
         </div>
