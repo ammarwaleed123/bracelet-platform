@@ -11,6 +11,7 @@ import {
   collections,
   designs,
 } from "@/lib/db/schema";
+import { AiAdminSection } from "@/components/admin/ai-admin-section";
 
 async function countFrom(table: PgTable): Promise<number> {
   const [row] = await db.select({ n: count() }).from(table);
@@ -37,6 +38,8 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      <AiAdminSection />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
           <Link

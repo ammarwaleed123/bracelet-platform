@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { nanoid } from "nanoid";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 
+import { designer } from "@/content/designer";
 import { useStudioStore } from "@/lib/studio/store";
 import { indexCatalog } from "@/lib/studio/derive";
 import { loadDraft, saveDraft } from "@/lib/studio/persistence";
@@ -23,6 +25,8 @@ const BraceletCanvas = dynamic(
   () => import("./scene/bracelet-canvas").then((m) => m.BraceletCanvas),
   { ssr: false, loading: () => <StudioLoading /> }
 );
+
+const AI_ON = process.env.NEXT_PUBLIC_FEATURE_AI_DESIGNER === "1";
 
 function isFormField(el: EventTarget | null) {
   return (
@@ -170,7 +174,18 @@ export function StudioShell({
       <aside className="w-full bg-background pb-24 lg:flex lg:h-full lg:w-[380px] lg:flex-col lg:border-l lg:border-border lg:pb-0">
         <div className="space-y-5 p-5 lg:shrink-0">
           <div className="flex items-center justify-between gap-3">
-            <p className="font-serif text-lg text-ink">Design</p>
+            <div className="flex items-center gap-2.5">
+              <p className="font-serif text-lg text-ink">Design</p>
+              {AI_ON && (
+                <Link
+                  href="/designer"
+                  className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold-tint/50 px-2.5 py-1 text-xs font-medium text-gold-strong transition-colors hover:bg-gold-tint"
+                >
+                  <Sparkles className="size-3.5" aria-hidden />
+                  {designer.studioLink}
+                </Link>
+              )}
+            </div>
             {/* Desktop: actions live in the always-visible rail header. On mobile
                 they move to a fixed bottom bar (below) so they never scroll away. */}
             <div className="hidden items-center gap-2 lg:flex">

@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   boolean,
+  index,
   integer,
   jsonb,
   numeric,
@@ -62,6 +63,12 @@ export const moderationStatus = pgEnum("moderation_status", [
   "approved",
   "rejected",
 ]);
+
+/** How a design was created (Phase 2 AI designer). */
+export const designSource = pgEnum("design_source", ["studio", "ai_designer"]);
+
+/** AI providers behind the bracelet designer. */
+export const aiProvider = pgEnum("ai_provider", ["gemini", "anthropic"]);
 
 /* ----- commerce enums (milestone 1.5) ----- */
 
@@ -324,6 +331,8 @@ export const designs = pgTable("designs", {
     .notNull()
     .default([]),
   designSchemaVersion: integer("design_schema_version").notNull().default(1),
+  /** Where it came from: hand-built in the studio, or the AI designer. */
+  source: designSource("source").notNull().default("studio"),
   /** Price computed server-side on save; never trust the client. */
   priceSnapshotInPiastres: integer("price_snapshot_in_piastres")
     .notNull()
@@ -355,6 +364,41 @@ export const designLikes = pgTable(
   },
   // Composite PK already enforces one like per (design, user).
   (t) => [primaryKey({ columns: [t.designId, t.userId] })]
+);
+
+/* ----------------------------------------------------- ai generations -- */
+
+/**
+ * One row per AI-designer generation attempt (Phase 2). Powers: per-user rate
+ * limiting (count recent rows), the admin usage panel, and the "time to upgrade
+ * your AI provider" banner thresholds. Sign-in required, so userId is not null.
+ */
+export const aiGenerations = pgTable(
+  "ai_generations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    provider: aiProvider("provider").notNull(),
+    model: text("model").notNull(),
+    inputJson: jsonb("input_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    success: boolean("success").notNull(),
+    designCount: integer("design_count").notNull().default(0),
+    promptTokens: integer("prompt_tokens"),
+    totalTokens: integer("total_tokens"),
+    errorCode: text("error_code"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("ai_generations_created_at_idx").on(t.createdAt),
+    index("ai_generations_user_created_idx").on(t.userId, t.createdAt),
+  ]
 );
 
 /* --------------------------------------------------------- collections -- */

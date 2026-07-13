@@ -40,4 +40,21 @@ export const env = {
   get siteUrl() {
     return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   },
+
+  /** AI Bracelet Designer (Phase 2). Keys are server-only — never expose. */
+  ai: {
+    /** Which provider generates designs. Default: gemini (free tier). */
+    get provider(): "gemini" | "anthropic" {
+      const p = process.env.AI_PROVIDER;
+      return p === "anthropic" ? "anthropic" : "gemini";
+    },
+    /** Server-only Gemini API key. */
+    get geminiApiKey() {
+      return required("GEMINI_API_KEY");
+    },
+    /** Server-only Anthropic key (only needed when provider = anthropic). */
+    get anthropicApiKey() {
+      return required("ANTHROPIC_API_KEY");
+    },
+  },
 };

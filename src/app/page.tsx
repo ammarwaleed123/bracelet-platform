@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Hammer, Palette, Truck } from "lucide-react";
+import { Hammer, Palette, Sparkles, Truck } from "lucide-react";
 
 import { home } from "@/content/site";
+import { designer } from "@/content/designer";
 import { getGalleryDesigns } from "@/lib/designs/queries";
 import { getHeroBeads } from "@/lib/catalog/hero-beads";
 import type { GalleryItem } from "@/lib/designs/types";
@@ -12,6 +13,7 @@ import { CinematicIntro } from "@/components/home/cinematic-intro";
 import { Reveal } from "@/components/home/reveal";
 
 const VALUE_ICONS = [Palette, Hammer, Truck];
+const AI_ON = process.env.NEXT_PUBLIC_FEATURE_AI_DESIGNER === "1";
 
 export default async function HomePage() {
   const [{ items: featured }, heroBeads] = await Promise.all([
@@ -49,6 +51,28 @@ export default async function HomePage() {
               <Button asChild variant="outline" size="lg">
                 <Link href={home.featured.cta.href}>
                   {home.featured.cta.label}
+                </Link>
+              </Button>
+            </Reveal>
+          </Container>
+        </div>
+      )}
+
+      {/* ----------------------------------------------- AI designer CTA -- */}
+      {AI_ON && (
+        <div className="border-t border-border bg-gold-tint/40">
+          <Container className="py-16">
+            <Reveal className="flex flex-col items-center text-center">
+              <p className="label-caps">{designer.homeCta.eyebrow}</p>
+              <h2 className="mt-3 max-w-xl text-balance font-serif text-3xl text-ink sm:text-4xl">
+                {designer.homeCta.title}
+              </h2>
+              <p className="mt-3 max-w-md text-ink-soft">
+                {designer.homeCta.body}
+              </p>
+              <Button asChild size="lg" className="mt-7">
+                <Link href={designer.homeCta.href}>
+                  <Sparkles aria-hidden /> {designer.homeCta.cta}
                 </Link>
               </Button>
             </Reveal>

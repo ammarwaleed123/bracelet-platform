@@ -34,3 +34,7 @@ Luxury through restraint: generous whitespace, refined serif display type over c
 - Write meaningful commit messages: what changed and why, present tense.
 - When a decision is ambiguous, choose the simpler implementation and leave a `// DECISION:` comment explaining the tradeoff — do not add configuration options speculatively.
 - Never commit secrets. All keys live in `.env.local` (gitignored); keep `.env.example` current.
+
+## Pending decisions
+
+- **AI runs on the Gemini free tier.** The AI Bracelet Designer (milestone 2.1) uses Gemini's free tier via a provider abstraction (`AI_PROVIDER`, default `gemini`; Anthropic stubbed). This MUST move to a paid provider **before launching AI Style Match** (customer photos must never go through a tier that may train on inputs) and **once real order volume arrives** (reliability). The `/admin` dashboard surfaces a "time to upgrade" banner at ~10 delivered orders or 60% of the daily quota; the how-to is `docs/AI-PROVIDER-SWITCH.md`. **Any session that touches AI features must surface this note to the owner.**

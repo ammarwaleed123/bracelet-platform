@@ -41,6 +41,8 @@ const saveSchema = z.object({
    * the explicit Save passes true (default), promoting it to a saved design.
    */
   saveToAccount: z.boolean().optional(),
+  /** How the design originated. AI-designer concepts pass "ai_designer". */
+  source: z.enum(["studio", "ai_designer"]).optional(),
 });
 
 export type SaveDesignInput = z.input<typeof saveSchema>;
@@ -166,6 +168,7 @@ export async function saveDesign(
         name: d.name,
         // Add-to-cart persists a hidden draft; Save creates a visible design.
         status: promote ? "saved" : "draft",
+        source: d.source ?? "studio",
         baseId: d.baseId,
         sizeCm: String(d.sizeCm),
         componentsJson,
