@@ -140,3 +140,14 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Print — the passport card page. Site chrome is hidden via `print:hidden`;
+   here we just tidy the page box and let component colours print. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body {
+    background: #fff;
+  }
+}

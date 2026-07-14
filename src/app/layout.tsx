@@ -62,12 +62,19 @@ export default async function RootLayout({
       {/* suppressHydrationWarning: browser extensions inject attributes on
           <body> (e.g. password managers) before React hydrates — harmless. */}
       <body className="flex min-h-dvh flex-col antialiased" suppressHydrationWarning>
-        <SiteHeader cartCount={cartCount} />
+        {/* Site chrome is hidden when printing (e.g. the passport card page). */}
+        <div className="print:hidden">
+          <SiteHeader cartCount={cartCount} />
+        </div>
         <main id="main" className="flex-1">
           {children}
         </main>
-        <ConditionalFooter />
-        <MobileCartBar count={cartCount} />
+        <div className="print:hidden">
+          <ConditionalFooter />
+        </div>
+        <div className="print:hidden">
+          <MobileCartBar count={cartCount} />
+        </div>
         {!user && <SignupPromo />}
       </body>
     </html>

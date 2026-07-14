@@ -196,6 +196,137 @@ export async function getPublicDesign(
   };
 }
 
+/* ----------------------------------------------------- passport (Phase 2) -- */
+
+export type DesignLineageEntry = {
+  name: string;
+  publicId: string;
+  creatorName: string | null;
+};
+
+export type DesignPassport = {
+  id: string;
+  publicId: string;
+  name: string;
+  thumbnailUrl: string | null;
+  priceInPiastres: number;
+  likesCount: number;
+  sizeCm: string;
+  createdAt: Date;
+  creatorName: string | null;
+  baseName: string | null;
+  parts: ResolvedDesignPart[];
+  /** Ancestry via forkedFromDesignId — immediate parent first. */
+  lineage: DesignLineageEntry[];
+  /** Gallery-approved: controls likes / "Designed by" framing. */
+  isPublic: boolean;
+  isOwner: boolean;
+  /** Whether this viewer can add it to cart (public, brand, or their own). */
+  isBuyable: boolean;
+};
+
+/**
+ * A design's Passport by publicId. Unlike `getPublicDesign`, this is a
+ * capability URL: any existing design is viewable read-only (the publicId is an
+ * unguessable nanoid), so a gift recipient can scan the box QR without owning
+ * it. Framing (likes, buy, "Designed by") is gated by the returned flags.
+ */
+export async function getDesignPassport(
+  publicId: string,
+  viewerId?: string
+): Promise<DesignPassport | null> {
+  const [row] = await db
+    .select({
+      id: designs.id,
+      publicId: designs.publicId,
+      name: designs.name,
+      thumbnailUrl: designs.thumbnailUrl,
+      priceInPiastres: designs.priceSnapshotInPiastres,
+      likesCount: designs.likesCount,
+      sizeCm: designs.sizeCm,
+      componentsJson: designs.componentsJson,
+      status: designs.status,
+      moderationStatus: designs.moderationStatus,
+      ownerId: designs.ownerId,
+      forkedFromDesignId: designs.forkedFromDesignId,
+      createdAt: designs.createdAt,
+      creatorName: profiles.displayName,
+      baseName: bases.name,
+    })
+    .from(designs)
+    .leftJoin(profiles, eq(designs.ownerId, profiles.id))
+    .leftJoin(bases, eq(designs.baseId, bases.id))
+    .where(eq(designs.publicId, publicId))
+    .limit(1);
+
+  if (!row) return null;
+
+  const isPublic =
+    row.status === "published_public" && row.moderationStatus === "approved";
+  const isOwner = Boolean(viewerId && row.ownerId === viewerId);
+  // Mirror cart/actions.ts assertBuyable: public, brand (no owner), or own.
+  const isBuyable =
+    row.status === "published_public" || row.ownerId === null || isOwner;
+
+  const [parts, lineage] = await Promise.all([
+    resolveParts(row.componentsJson),
+    row.forkedFromDesignId
+      ? getDesignLineage(row.forkedFromDesignId)
+      : Promise.resolve([] as DesignLineageEntry[]),
+  ]);
+
+  return {
+    id: row.id,
+    publicId: row.publicId,
+    name: row.name,
+    thumbnailUrl: row.thumbnailUrl,
+    priceInPiastres: row.priceInPiastres,
+    likesCount: row.likesCount,
+    sizeCm: row.sizeCm,
+    createdAt: row.createdAt,
+    creatorName: row.creatorName,
+    baseName: row.baseName,
+    parts,
+    lineage,
+    isPublic,
+    isOwner,
+    isBuyable,
+  };
+}
+
+/** Walk the forkedFromDesignId chain upward (immediate parent first). Capped and
+ *  cycle-guarded so a corrupt chain can never loop. */
+export async function getDesignLineage(
+  startId: string
+): Promise<DesignLineageEntry[]> {
+  const chain: DesignLineageEntry[] = [];
+  const seen = new Set<string>();
+  let currentId: string | null = startId;
+
+  for (let i = 0; i < 5 && currentId && !seen.has(currentId); i++) {
+    seen.add(currentId);
+    const [row] = await db
+      .select({
+        publicId: designs.publicId,
+        name: designs.name,
+        forkedFromDesignId: designs.forkedFromDesignId,
+        creatorName: profiles.displayName,
+      })
+      .from(designs)
+      .leftJoin(profiles, eq(designs.ownerId, profiles.id))
+      .where(eq(designs.id, currentId))
+      .limit(1);
+    if (!row) break;
+    chain.push({
+      name: row.name,
+      publicId: row.publicId,
+      creatorName: row.creatorName,
+    });
+    currentId = row.forkedFromDesignId;
+  }
+  return chain;
+}
+
 export type UserDesign = {
   id: string;
   publicId: string;

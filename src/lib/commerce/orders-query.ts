@@ -3,7 +3,7 @@ import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { orderEvents, orderItems, orders } from "@/lib/db/schema";
+import { designs, orderEvents, orderItems, orders } from "@/lib/db/schema";
 
 export async function getOrderByNumber(orderNumber: string) {
   const [order] = await db
@@ -25,6 +25,20 @@ export async function getOrderByNumber(orderNumber: string) {
     .orderBy(asc(orderEvents.createdAt));
 
   return { order, items, events };
+}
+
+/** Per-item passport cards for admin fulfilment — one printable card per design
+ *  in the order (skips items whose design was since deleted). */
+export async function getOrderDesignCards(orderId: string) {
+  return db
+    .select({
+      designName: orderItems.designName,
+      publicId: designs.publicId,
+      quantity: orderItems.quantity,
+    })
+    .from(orderItems)
+    .innerJoin(designs, eq(orderItems.designId, designs.id))
+    .where(eq(orderItems.orderId, orderId));
 }
 
 /** Guest-safe tracking: only returns the order if the phone matches. */
